@@ -1,0 +1,6 @@
+    {
+      "c
+⏸  FORM — Creative brief - pick the subject, character, and style.
+   topic: A tiny motorized desk robot proudly attempts to fold a single kitchen napkin and shreds it into confetti.
+   defaults (user:prefs): {"subject": "robot vs sock drawer chaos", "character": "Mochi, a palm-sized desk robot with an oversized ego", "style": "low-poly"}
+   answer: python -m agent.answer --subject "…" --character "…" --style low-poly

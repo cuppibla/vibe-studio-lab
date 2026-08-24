@@ -1,0 +1,10 @@
+graph#1 · where do I lose people?            engine: sql
+   Tiny Robot, Huge Ego: The Napkin Meltdown    avg  48.9% · median drop 4658 ms · dropped 95.8%
+   How Tiny Robots Clean in 5 Seconds           avg  55.7% · median drop 4925 ms · dropped 83.3%
+   Mochi's Flawless Toast Disaster              avg  56.7% · median drop 5649 ms · dropped 91.7%
+graph#3 · what else do my finishers finish?  engine: gql
+   agents on camera                             fans 4
+   ambient & mood                               fans 3
+   one-take storytelling                        fans 3
+   city data visualized                         fans 2
+   editing craft                                fans 2

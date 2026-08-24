@@ -1,0 +1,14 @@
+# secrets and machine-local config
+.env
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# everything the lab GENERATES at runtime (each student makes their own)
+runs/
+app/static/thumbs/
+
+# author-side capture scratch
+codelab-img/src/decor/*-s.png

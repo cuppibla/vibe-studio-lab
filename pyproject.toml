@@ -1,0 +1,17 @@
+[project]
+name = "vibe-studio-lab"
+version = "0.1.0"
+description = "Vibe Studio: Long-Running Workflows & Durable State with ADK"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "google-adk[db]==2.5.0",
+    "fastapi>=0.111",
+    "uvicorn>=0.30",
+    "httpx>=0.27",
+    "google-cloud-bigquery>=3.25",
+    "greenlet>=3.5.5",
+    "google-cloud-aiplatform>=1.163.0",
+]
+
+[tool.setuptools]
+packages = []

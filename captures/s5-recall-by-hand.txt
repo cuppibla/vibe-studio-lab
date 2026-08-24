@@ -1,0 +1,3 @@
+  memory#33543129 [CHANNEL_CONSTRAINTS] Open with the conclusion in the first 3 seconds.
+  memory#56601559 [CHANNEL_LESSONS] Lap 2 'Tiny Robot, Huge Ego: The Napkin Meltdown' lost 96% of viewers (avg watch 49%); the hook arrived at 5s.
+  memory#89764940 [CHANNEL_LESSONS] Lap 3 'Mochi's Flawless Toast Disaster' lost 92% of viewers (avg watch 57%); the hook arrived at 5s.

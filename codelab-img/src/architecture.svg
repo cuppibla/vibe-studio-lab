@@ -1,0 +1,139 @@
+<svg width="1600" height="920" viewBox="0 0 1600 920" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="llm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6366F1"/><stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#94A3B8"/>
+    </marker>
+    <marker id="arrP" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8B5CF6"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#10B981"/>
+    </marker>
+  </defs>
+  <rect width="1600" height="920" fill="#FFFFFF"/>
+  <text x="70" y="64" font-family="-apple-system,'SF Pro Text','Helvetica Neue',Arial" font-size="34" font-weight="700" fill="#0F172A">Vibe Studio, one breath — five surfaces, one loop</text>
+  <text x="70" y="98" font-family="-apple-system,'SF Pro Text','Helvetica Neue',Arial" font-size="20" fill="#64748B">Every box is something you boot or read in this lab; the numbered walk ①–⑥ is one lap of the channel.</text>
+
+  <!-- ══ container: Cloud Shell repo ══ -->
+  <rect x="60" y="150" width="640" height="500" rx="18" fill="#F8FAFC" fill-opacity="0.6" stroke="#94A3B8" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="84" y="182" font-family="'SF Mono',Menlo,Consolas" font-size="15" fill="#334155">Cloud Shell · vibe-studio-lab repo</text>
+
+  <!-- workflow (LLM) -->
+  <rect x="100" y="210" width="250" height="64" rx="10" fill="url(#llm)"/>
+  <text x="118" y="238" font-family="'SF Mono',Menlo,Consolas" font-size="15" fill="#FFFFFF">✦ the workflow</text>
+  <text x="118" y="258" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#E0E7FF">graph.py · reads→gates→script</text>
+  <!-- HITL chip -->
+  <rect x="100" y="286" width="250" height="34" rx="8" fill="#FFFBEB" stroke="#F59E0B" stroke-width="2"/>
+  <text x="118" y="308" font-family="'SF Mono',Menlo,Consolas" font-size="13" fill="#92400E">⏸ RequestInput — forms pause here</text>
+  <!-- desk (LLM) -->
+  <rect x="100" y="350" width="250" height="56" rx="10" fill="url(#llm)"/>
+  <text x="118" y="374" font-family="'SF Mono',Menlo,Consolas" font-size="15" fill="#FFFFFF">✦ render desk</text>
+  <text x="118" y="392" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#E0E7FF">desk.py · long-running submits</text>
+  <!-- drivers -->
+  <rect x="430" y="210" width="230" height="96" rx="10" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+  <text x="448" y="236" font-family="'SF Mono',Menlo,Consolas" font-size="15" fill="#0F172A">drivers (plain python)</text>
+  <text x="448" y="256" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B">ring · finish · learn · bank</text>
+  <text x="448" y="274" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B">every pause resumes through</text>
+  <text x="448" y="290" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B">YOUR answer() — same id</text>
+  <!-- artifacts -->
+  <rect x="100" y="560" width="180" height="52" rx="8" fill="#FFFFFF" stroke="#F59E0B" stroke-width="2"/>
+  <text x="114" y="582" font-family="'SF Mono',Menlo,Consolas" font-size="13" fill="#0F172A">runs/sessions.db</text>
+  <text x="114" y="600" font-family="'SF Mono',Menlo,Consolas" font-size="11" fill="#64748B">every wait lives here</text>
+  <rect x="300" y="560" width="150" height="52" rx="8" fill="#FFFFFF" stroke="#F59E0B" stroke-width="2"/>
+  <text x="314" y="582" font-family="'SF Mono',Menlo,Consolas" font-size="13" fill="#0F172A">state.json</text>
+  <text x="314" y="600" font-family="'SF Mono',Menlo,Consolas" font-size="11" fill="#64748B">one run's ledger</text>
+  <rect x="470" y="560" width="190" height="52" rx="8" fill="#FFFFFF" stroke="#F59E0B" stroke-width="2"/>
+  <text x="484" y="582" font-family="'SF Mono',Menlo,Consolas" font-size="13" fill="#0F172A">broker.json</text>
+  <text x="484" y="600" font-family="'SF Mono',Menlo,Consolas" font-size="11" fill="#64748B">the farm (prebaked)</text>
+
+  <!-- ══ container: ONE server ══ -->
+  <rect x="760" y="150" width="380" height="310" rx="18" fill="#F8FAFC" fill-opacity="0.6" stroke="#94A3B8" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="784" y="182" font-family="'SF Mono',Menlo,Consolas" font-size="15" fill="#334155">ONE server · uvicorn :4600</text>
+  <rect x="790" y="210" width="320" height="64" rx="10" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+  <text x="808" y="238" font-family="'SF Mono',Menlo,Consolas" font-size="15" fill="#0F172A">Vibe Studio (console)</text>
+  <text x="808" y="258" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B">Now · Channel · State</text>
+  <rect x="790" y="300" width="320" height="64" rx="10" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+  <text x="808" y="328" font-family="'SF Mono',Menlo,Consolas" font-size="15" fill="#0F172A">Wall API — the mini-YouTube</text>
+  <text x="808" y="348" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B">/api/join · /api/publish · views</text>
+  <rect x="790" y="388" width="170" height="44" rx="8" fill="#FFFFFF" stroke="#F59E0B" stroke-width="2"/>
+  <text x="804" y="415" font-family="'SF Mono',Menlo,Consolas" font-size="13" fill="#0F172A">runs/wall.db</text>
+
+  <!-- ══ container: adk web ══ -->
+  <rect x="760" y="520" width="380" height="150" rx="18" fill="#F8FAFC" fill-opacity="0.6" stroke="#94A3B8" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="784" y="552" font-family="'SF Mono',Menlo,Consolas" font-size="15" fill="#334155">dev UI · adk web :8000</text>
+  <rect x="790" y="576" width="320" height="64" rx="10" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+  <text x="808" y="604" font-family="'SF Mono',Menlo,Consolas" font-size="15" fill="#0F172A">events · call ids · State tab</text>
+  <text x="808" y="624" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B">the microscope, not the product</text>
+
+  <!-- ══ container: Google Cloud ══ -->
+  <rect x="1200" y="150" width="340" height="500" rx="18" fill="#F8FAFC" fill-opacity="0.6" stroke="#94A3B8" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="1224" y="182" font-family="'SF Mono',Menlo,Consolas" font-size="15" fill="#334155">Google Cloud · your project</text>
+  <rect x="1230" y="230" width="280" height="76" rx="10" fill="#FFFFFF" stroke="#F59E0B" stroke-width="2"/>
+  <text x="1248" y="258" font-family="'SF Mono',Menlo,Consolas" font-size="15" fill="#0F172A">BigQuery — world state</text>
+  <text x="1248" y="278" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B">vibestudio dataset</text>
+  <text x="1248" y="294" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B">taste_graph (GQL paths)</text>
+  <rect x="1230" y="430" width="280" height="76" rx="10" fill="#FFFFFF" stroke="#F59E0B" stroke-width="2"/>
+  <text x="1248" y="458" font-family="'SF Mono',Menlo,Consolas" font-size="15" fill="#0F172A">Memory Bank — lessons</text>
+  <text x="1248" y="478" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B">Agent Engine resource</text>
+  <text x="1248" y="494" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B">scope: vibestudio · creator</text>
+
+  <!-- ══ edges ══ -->
+  <!-- 1 console -> drivers (dashed) -->
+  <path d="M790,242 L668,242" fill="none" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arr)"/>
+  <circle cx="690" cy="242" r="15" fill="#0F172A"/><text x="690" y="247" font-family="-apple-system" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">1</text>
+  <text x="727" y="206" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B" text-anchor="middle">buttons spawn</text>
+  <text x="727" y="222" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B" text-anchor="middle">the same CLIs</text>
+
+  <!-- 2 drivers -> workflow -->
+  <path d="M430,250 L358,250" fill="none" stroke="#94A3B8" stroke-width="2" marker-end="url(#arr)"/>
+  <circle cx="394" cy="250" r="15" fill="#0F172A"/><text x="394" y="255" font-family="-apple-system" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">2</text>
+
+  <!-- 3 desk -> broker -->
+  <path d="M350,378 L565,378 L565,552" fill="none" stroke="#94A3B8" stroke-width="2" marker-end="url(#arr)"/>
+  <circle cx="565" cy="440" r="15" fill="#0F172A"/><text x="565" y="445" font-family="-apple-system" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">3</text>
+  <text x="585" y="420" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B">submit → pending</text>
+  <text x="585" y="436" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B">finish polls, answers</text>
+
+  <!-- 4 drivers -> wall (green publish) -->
+  <path d="M660,298 L680,298 L680,332 L782,332" fill="none" stroke="#10B981" stroke-width="2" marker-end="url(#arrG)"/>
+  <circle cx="680" cy="315" r="15" fill="#0F172A"/><text x="680" y="320" font-family="-apple-system" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">4</text>
+  <text x="726" y="356" font-family="'SF Mono',Menlo,Consolas" font-size="12" font-weight="700" fill="#047857" text-anchor="middle">POST /publish</text>
+
+  <!-- 5 drivers/learn -> BigQuery (over the top) -->
+  <path d="M545,210 L545,120 L1264,120 L1264,222" fill="none" stroke="#94A3B8" stroke-width="2" marker-end="url(#arr)"/>
+  <circle cx="905" cy="120" r="15" fill="#0F172A"/><text x="905" y="125" font-family="-apple-system" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">5</text>
+  <text x="1060" y="112" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B" text-anchor="middle">learn: export rows · generate(facts)</text>
+  <!-- 5b BQ -> MB distill (short, inside cloud container) -->
+  <path d="M1370,306 L1370,422" fill="none" stroke="#94A3B8" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="1384" y="356" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B">readings distill</text>
+  <text x="1384" y="372" font-family="'SF Mono',Menlo,Consolas" font-size="12" fill="#64748B">into notes</text>
+
+  <!-- 6 the loop back (purple) -->
+  <path d="M1310,506 L1310,760 L86,760 L86,242 L92,242" fill="none" stroke="#8B5CF6" stroke-width="2.5" stroke-dasharray="7 6" marker-end="url(#arrP)"/>
+  <circle cx="698" cy="760" r="15" fill="#0F172A"/><text x="698" y="765" font-family="-apple-system" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">6</text>
+  <text x="725" y="748" font-family="'SF Mono',Menlo,Consolas" font-size="13" font-weight="700" fill="#8B5CF6">next lap: research reads the graph + recalls the lessons — the loop</text>
+
+  <!-- adk web reads sessions.db (dashed, unnumbered) -->
+  <path d="M790,616 L760,616 L760,634 L190,634 L190,618" fill="none" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arr)"/>
+  <text x="475" y="628" font-family="'SF Mono',Menlo,Consolas" font-size="11" fill="#64748B" text-anchor="middle">same sqlite file — two views, one truth</text>
+
+  <!-- ══ legend ══ -->
+  <rect x="70" y="800" width="26" height="18" rx="5" fill="url(#llm)"/>
+  <text x="104" y="814" font-family="-apple-system" font-size="14" fill="#334155">✦ LLM agent node</text>
+  <rect x="260" y="800" width="26" height="18" rx="5" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+  <text x="294" y="814" font-family="-apple-system" font-size="14" fill="#334155">plain function / surface</text>
+  <rect x="480" y="800" width="26" height="18" rx="5" fill="#FFFBEB" stroke="#F59E0B" stroke-width="2"/>
+  <text x="514" y="814" font-family="-apple-system" font-size="14" fill="#334155">⏸ human pause / data artifact</text>
+  <line x1="740" y1="809" x2="790" y2="809" stroke="#94A3B8" stroke-width="2"/>
+  <text x="800" y="814" font-family="-apple-system" font-size="14" fill="#334155">call</text>
+  <line x1="860" y1="809" x2="910" y2="809" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 5"/>
+  <text x="920" y="814" font-family="-apple-system" font-size="14" fill="#334155">async / same-file view</text>
+
+  <!-- ══ caveat strip ══ -->
+  <rect x="60" y="838" width="1480" height="58" rx="12" fill="#FFFBEB" stroke="#FDE68A" stroke-width="2"/>
+  <text x="84" y="862" font-family="-apple-system" font-size="15" font-weight="700" fill="#92400E">One law: the graph pauses for PEOPLE — it never waits for the WORLD.</text>
+  <text x="84" y="884" font-family="-apple-system" font-size="14" fill="#B45309">Forms suspend the workflow (safe to re-ask). Renders wait in the desk session — a resumed graph re-runs its nodes, and an external submit inside a node would submit twice.</text>
+</svg>

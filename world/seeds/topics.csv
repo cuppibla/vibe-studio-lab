@@ -1,0 +1,9 @@
+id,name,cluster
+t_quick_explainer,explainer <=12s,quickcut
+t_editing,editing craft,quickcut
+t_hooks,hooks & retention,quickcut
+t_onetake,one-take storytelling,slowburn
+t_ambient,ambient & mood,slowburn
+t_essay,mini video essays,slowburn
+t_citydata,city data visualized,mixed
+t_agents,agents on camera,mixed

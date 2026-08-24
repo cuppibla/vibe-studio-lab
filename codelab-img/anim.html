@@ -1,0 +1,72 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+html,body{margin:0;width:1376px;height:768px;overflow:hidden;background:#F7F1E8}
+#bg{position:absolute;left:0;top:0;width:1376px;height:768px}
+.scr{position:absolute;pointer-events:none;mix-blend-mode:screen;border-radius:12px}
+.mul{position:absolute;pointer-events:none;mix-blend-mode:multiply;border-radius:12px}
+#lampI{left:313px;top:254px;width:180px;height:180px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,200,110,1) 0%,rgba(255,200,110,0) 60%)}
+#lampO{left:233px;top:174px;width:340px;height:340px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,215,150,.85) 0%,rgba(255,215,150,0) 65%)}
+#pool{left:290px;top:470px;width:360px;height:130px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(255,200,120,.8) 0%,rgba(255,200,120,0) 62%)}
+#eyes{left:663px;top:371px;width:70px;height:70px;border-radius:50%;
+  background:radial-gradient(circle,rgba(140,240,255,1) 0%,rgba(140,240,255,0) 55%)}
+#blink{position:absolute;display:none;left:672px;top:396px;width:52px;height:22px;
+  border-radius:8px;background:rgb(100,99,108)}
+.mote{position:absolute;border-radius:50%;background:#FFF2C8;mix-blend-mode:screen}
+#pulse{position:absolute;width:18px;height:18px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,248,220,1) 0%,rgba(255,210,130,0) 70%);mix-blend-mode:screen}
+#pulse2{position:absolute;width:11px;height:11px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,240,200,.9) 0%,rgba(255,210,130,0) 70%);mix-blend-mode:screen}
+</style></head><body>
+<img id="bg" src="hero.png">
+<div class="scr" id="lampO"></div><div class="scr" id="lampI"></div><div class="scr" id="pool"></div>
+<div class="scr" id="eyes"></div><div id="blink"></div>
+<div id="pulse"></div><div id="pulse2"></div>
+<script>
+const f = parseInt(new URLSearchParams(location.search).get('f')||'0');
+const N = 36, t = f/N, TAU = Math.PI*2;
+const S = x => (Math.sin(x)+1)/2;
+const breathe = S(TAU*t*2 + 1.0);
+document.getElementById('lampI').style.opacity=(0.10+0.65*breathe).toFixed(3);
+document.getElementById('lampO').style.opacity=(0.10+0.45*breathe).toFixed(3);
+document.getElementById('pool').style.opacity =(0.08+0.50*S(TAU*t*2+1.3)).toFixed(3);
+
+const screens=[[500,190],[603,170],[700,152],[492,282],[593,264],[695,246],[487,372],[590,354],[690,336]];
+screens.forEach((c,i)=>{
+  const d=document.createElement('div');
+  const bright=(i%2===0);
+  d.className=bright?'scr':'mul';
+  const w=96,h=78; d.style.left=(c[0]-w/2)+'px'; d.style.top=(c[1]-h/2)+'px';
+  d.style.width=w+'px'; d.style.height=h+'px';
+  d.style.background=bright
+    ? 'radial-gradient(circle, rgba(255,235,250,.95) 0%, rgba(255,235,250,0) 72%)'
+    : 'radial-gradient(circle, rgba(120,95,120,.9) 0%, rgba(120,95,120,0) 75%)';
+  const k=(i%3)+2, ph=i*1.9;
+  d.style.opacity=(0.05+0.45*S(TAU*t*k+ph)).toFixed(3);
+  document.body.appendChild(d);
+});
+
+const blinkOn=(f===30||f===31);
+document.getElementById('eyes').style.opacity=blinkOn?0:(0.30+0.40*S(TAU*t*3+0.5)).toFixed(3);
+document.getElementById('blink').style.display=blinkOn?'block':'none';
+
+const P0=[786,494],P1=[906,556],P2=[988,446];
+const bez=(a,b,c,u)=>((1-u)*(1-u)*a+2*(1-u)*u*b+u*u*c);
+function put(id,u,r){const d=document.getElementById(id);
+  d.style.left=(bez(P0[0],P1[0],P2[0],u)-r)+'px';
+  d.style.top =(bez(P0[1],P1[1],P2[1],u)-r)+'px';
+  d.style.opacity=(u<0.04||u>0.96)?0:0.95;}
+put('pulse',t,9); put('pulse2',Math.max(0,t-0.06),5.5);
+
+[[350,0.0],[400,0.28],[330,0.52],[430,0.72],[380,0.9],[455,0.15]].forEach((m,i)=>{
+  const d=document.createElement('div'); d.className='mote';
+  const tt=(t+m[1])%1, sz=(i%2?6:8);
+  d.style.width=sz+'px'; d.style.height=sz+'px';
+  d.style.left=(m[0]+10*Math.sin(TAU*t*2+i*2.1))+'px';
+  d.style.top=(565-270*tt)+'px';
+  d.style.opacity=(tt<0.06||tt>0.88)?0:(0.5+0.45*S(TAU*tt*2+i)).toFixed(3);
+  document.body.appendChild(d);
+});
+document.title='ready'+f;
+</script></body></html>
