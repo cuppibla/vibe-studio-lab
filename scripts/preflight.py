@@ -61,6 +61,14 @@ else:
     except ImportError:
         tick("Memory Bank SDK", False, "uv sync")
 
+# the three sandbox workflows of chapter 🔺 - adk web lists them as apps
+for app in ("shape1_line", "shape2_router", "shape3_fanout"):
+    try:
+        mod = __import__(f"{app}.agent", fromlist=["root_agent"])
+        tick(f"{app} loads ({len(mod.root_agent.graph.edges)} edges)", True)
+    except Exception as e:
+        tick(f"{app} loads", False, str(e)[:70])
+
 try:
     import httpx
     r = httpx.get(f"{config.STUDIO_URL}/api/trends", timeout=3)

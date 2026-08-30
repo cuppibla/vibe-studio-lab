@@ -57,17 +57,34 @@ def gate_spinup():
 
 
 def gate_one():
-    import json as _json
-    ledger = config.RUNS / "delivered.json"
-    check("a result was delivered at least once (runs/delivered.json)", ledger.exists())
-    if not ledger.exists():
-        return
-    ref = _json.loads(ledger.read_text())
-    lr, latest, _ = _session_calls(ref["session"], user=ref["user"])
-    check("the typed session carried a long-running call", len(lr) >= 1)
-    answered = [cid for cid in lr if cid in latest
-                and latest[cid][1].get("status") != "pending"]
-    check("it was answered by id (the three lines in answer())", len(answered) == len(lr))
+    """Works for BOTH delivery paths: the dev UI's response box and
+    `python -m agent.deliver` - all we assert is that some session carried a
+    long-running call and that its result came back addressed by the same id."""
+    async def _scan():
+        service = drive.svc()
+        found = []
+        for user in ("user", config.USER):
+            resp = await service.list_sessions(app_name=config.APP, user_id=user)
+            for meta in resp.sessions:
+                s = await service.get_session(app_name=config.APP, user_id=user,
+                                              session_id=meta.id)
+                lr, latest = set(), {}
+                for ev in (s.events if s else []):
+                    if getattr(ev, "long_running_tool_ids", None):
+                        lr |= set(ev.long_running_tool_ids)
+                    for r in ev.get_function_responses() or []:
+                        latest[r.id] = r.response or {}
+                if lr:
+                    done = [c for c in lr
+                            if latest.get(c, {}).get("status") not in (None, "pending")]
+                    found.append((meta.id, len(lr), len(done)))
+        return found
+    sessions = drive.run(_scan())
+    check("a session carried a long-running call", bool(sessions),
+          "type a render request in adk web first")
+    delivered = [s for s in sessions if s[2] >= 1]
+    check("its result was delivered by id (UI box or agent.deliver)",
+          bool(delivered), f"open calls still pending in {[s[0] for s in sessions]}")
 
 
 def gate_pending():
@@ -101,8 +118,12 @@ def gate_hitl():
     ri_answered = any(latest[cid][0] == "adk_request_input" for cid in lr
                       if cid in latest)
     check("the form was answered by function_response (same id)", ri_answered)
-    check("the topic gate finished via finish_task (task mode)",
-          "finish_task" in names)
+    ri_calls = [cid for cid in latest if latest[cid][0] == "adk_request_input"]
+    check("exactly ONE human pause in the graph (the form)", len(ri_calls) == 1,
+          f"{len(ri_calls)} RequestInput calls")
+    check("your answer became the run's choices (schema fields, not prose)",
+          set(s.get("choices") or {}) >= {"subject", "character", "style"},
+          str(s.get("choices")))
     check("your choices reached the script (subject/character/style)",
           bool(s.get("choices", {}).get("style")))
 

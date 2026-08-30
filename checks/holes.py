@@ -39,11 +39,6 @@ HOLES = {
         (join_research, compose_bundle, topic_gate, creative_gate,
          persist_prefs, scripter, store_script),'''),
 
-    # S2 · one word makes a node collaborative (task mode)
-    "TASK_WORD": ("agent/graph.py",
-                  '    # mode="task",   # TODO: TASK_WORD — uncomment: one word turns on task mode (Codelab S2)',
-                  '    mode="task",'),
-
     # S2 · the graph asks a person, one structured form
     "CREATIVE_GATE": ("agent/graph.py",
                       '''    raise NotImplementedError("TODO: CREATIVE_GATE — delete me, uncomment below (Codelab S2)")
@@ -78,13 +73,11 @@ HOLES = {
     -- `{d}.watched` AS watched
     --   KEY (viewer_id, video_id)
     --   SOURCE KEY (viewer_id) REFERENCES viewers (id)
-    --   DESTINATION KEY (video_id) REFERENCES videos (id)
-    --   LABEL watched PROPERTIES (watched_ms, drop_ms, completed, is_synthetic)''',
+    --   DESTINATION KEY (video_id) REFERENCES videos (id)''',
                    '''    `{d}.watched` AS watched
       KEY (viewer_id, video_id)
       SOURCE KEY (viewer_id) REFERENCES viewers (id)
-      DESTINATION KEY (video_id) REFERENCES videos (id)
-      LABEL watched PROPERTIES (watched_ms, drop_ms, completed, is_synthetic)'''),
+      DESTINATION KEY (video_id) REFERENCES videos (id)'''),
 
     # S5 · learned state — the WRITE path
     "GENERATE": ("agent/memory.py",
@@ -108,5 +101,5 @@ HOLES = {
 }
 
 # codelab section aliases for rescue
-SECTIONS = {"s1": ["RESUME"], "s2": ["EDGES", "TASK_WORD", "CREATIVE_GATE", "JOIN_CONDITION"],
+SECTIONS = {"s1": ["RESUME"], "s2": ["EDGES", "CREATIVE_GATE", "JOIN_CONDITION"],
             "s3": ["PREFS"], "s4": ["EDGE_TABLE"], "s5": ["GENERATE", "RECALL"]}

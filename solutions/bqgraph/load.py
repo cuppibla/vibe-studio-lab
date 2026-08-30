@@ -34,18 +34,15 @@ CREATE OR REPLACE PROPERTY GRAPH `{p}.{d}.taste_graph`
     `{d}.videos` AS published
       KEY (id)
       SOURCE KEY (creator_id) REFERENCES creators (id)
-      DESTINATION KEY (id) REFERENCES videos (id)
-      LABEL published,
+      DESTINATION KEY (id) REFERENCES videos (id),
     `{d}.about` AS about
       KEY (video_id, topic_id)
       SOURCE KEY (video_id) REFERENCES videos (id)
-      DESTINATION KEY (topic_id) REFERENCES topics (id)
-      LABEL about,
+      DESTINATION KEY (topic_id) REFERENCES topics (id),
     `{d}.watched` AS watched
       KEY (viewer_id, video_id)
       SOURCE KEY (viewer_id) REFERENCES viewers (id)
       DESTINATION KEY (video_id) REFERENCES videos (id)
-      LABEL watched PROPERTIES (watched_ms, drop_ms, completed, is_synthetic)
   )
 """
 

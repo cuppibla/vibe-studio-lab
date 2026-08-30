@@ -1,10 +1,10 @@
-"""THE workflow - one graph from research to script, with two human doors.
+"""THE workflow - one graph from research to script, with one human door.
 
-  4 research nodes -> join -> topic_gate (task mode: chats until you accept)
+  4 research nodes -> join -> topic_gate (one call, a typed Brief)
                            -> creative_gate (RequestInput: one structured form)
                            -> persist_prefs -> scripter -> store_script
 
-The graph pauses for PEOPLE (both doors). It never waits for the WORLD -
+The graph pauses for PEOPLE (the form). It never waits for the WORLD -
 renders live in the desk session (agent/desk.py), because resuming a graph
 re-runs nodes and would re-submit side effects.
 """
@@ -81,10 +81,11 @@ def compose_bundle(node_input):
     return Event(output="\n\n".join(sections))
 
 
-# ── door 3 · the collaborative topic gate (one word: mode='task') ───────────
+# ── the topic node · a workflow node, so it decides in ONE call ─────────────
+# (mode defaults to "single_turn" here; see the codelab's Read more for the
+#  other modes an LlmAgent can take.)
 topic_gate = Agent(
     name="topic_gate", model=config.MODEL,
-    # mode="task",   # TODO: TASK_WORD — uncomment: one word turns on task mode (Codelab S2)
     output_schema=Brief,
     instruction=(
         "You run the creator's short-video channel. The message you received is "
@@ -94,8 +95,7 @@ topic_gate = Agent(
         "exactly two lines:\nTOPIC: <a concrete, filmable, characterful idea — a "
         "scene someone can picture, never a meta content-strategy topic>\n"
         "ANGLE: <the twist, one line>\n"
-        "Then chat: if the creator pushes back, revise the pitch (same two-line "
-        "format). When they accept, finish the task with the final Brief.\n"
+        "Then return the final Brief - one call, no conversation.\n"
         "Every evidence entry must cite a REAL source: 'trends', 'backcatalog', "
         "'memory#<id>' (ids present in the memory section only), or 'graph#<n>' "
         "(query numbers present in the graph section only). Empty sections are "
@@ -104,7 +104,7 @@ topic_gate = Agent(
         "MUST honor them."))
 
 
-# ── door 2 · the creative gate (RequestInput: one structured form) ──────────
+# ── the human door · the creative gate (RequestInput: one form) ────────────
 def creative_gate(node_input: Brief):
     yield Event(state={"brief": node_input.model_dump()})
     state.update(brief=node_input.model_dump())          # driver clipboard copy
@@ -169,15 +169,18 @@ def store_script(node_input: Script):
 
 
 wf = Workflow(
-    name="lap", description="research -> two human doors -> script",
+    name="lap", description="research -> the human door -> script",
     edges=[
-        (START, scan_trends, join_research),
-        (START, read_memory, join_research),
-        (START, read_backcatalog, join_research),
-        (START, read_graph, join_research),
-        (join_research, compose_bundle, topic_gate, creative_gate,
-         persist_prefs, scripter, store_script),
+        # TODO: EDGES — delete me, uncomment the shape below (Codelab S2)
+        # (START, scan_trends, join_research),
+        # (START, read_memory, join_research),
+        # (START, read_backcatalog, join_research),
+        # (START, read_graph, join_research),
+        # (join_research, compose_bundle, topic_gate, creative_gate,
+        #  persist_prefs, scripter, store_script),
     ])
 if not wf.edges:
-    raise NotImplementedError("TODO: EDGES — paste the edges from Codelab S2 "
-                              "into agent/graph.py")
+    raise NotImplementedError(
+        "TODO: EDGES — the graph has no edges yet. Open agent/graph.py, delete "
+        "the TODO line and uncomment the six lines under it (Codelab: 'Draw the "
+        "shape yourself').")

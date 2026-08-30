@@ -168,10 +168,32 @@ def spawn(verb: str, *args) -> None:
     BUSY.write_text(json.dumps({"verb": verb, "pid": p.pid, "at": time.time()}))
 
 
+def spawn_sh(verb: str, script: str) -> None:
+    """Same contract as spawn(), for the one step that IS a shell script:
+    the World button runs `bash scripts/graph.sh`, unbuffered, into a log the
+    page tails while it runs."""
+    if busy():
+        return
+    log = (config.RUNS / "graph_run.log").open("w")
+    env = {**os.environ, "PYTHONUNBUFFERED": "1",
+           "PATH": f"{config.ROOT / '.venv' / 'bin'}:{os.environ.get('PATH', '')}"}
+    proc = subprocess.Popen(["bash", script], cwd=config.ROOT, env=env,
+                            stdout=log, stderr=subprocess.STDOUT)
+    BUSY.write_text(json.dumps({"verb": verb, "pid": proc.pid, "at": time.time()}))
+
+
 def busy() -> str | None:
+    """Which button is still running, if any. Reaps first: a finished child
+    stays in the process table as a zombie until someone waits on it, and a
+    zombie answers signal 0 - it would look busy forever."""
     if not BUSY.exists():
         return None
     b = json.loads(BUSY.read_text())
+    try:
+        if os.waitpid(b["pid"], os.WNOHANG)[0] == b["pid"]:
+            return None                      # it just finished; reaped now
+    except ChildProcessError:
+        pass                                 # not ours / already reaped
     try:
         os.kill(b["pid"], 0)
         return b["verb"]
@@ -215,7 +237,18 @@ select{border:1.5px solid var(--line);border-radius:13px;padding:10px 13px;font-
 .prop .t{font-size:17px;font-weight:600;line-height:1.45;white-space:pre-wrap}
 .grid{display:flex;gap:18px;flex-wrap:wrap}
 .v{width:calc(50% - 9px);border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#fff}
-.v img{width:100%;height:180px;object-fit:cover;display:block}
+.v img,.v video{width:100%;height:180px;object-fit:cover;display:block;background:#000}
+.flow{margin:0 0 18px;padding:20px 16px 14px;background:#fff;border:1px solid var(--line);border-radius:18px;overflow-x:auto}
+.fs{display:flex;flex-direction:column;align-items:center;min-width:96px;flex:1}
+.fd{width:15px;height:15px;border-radius:50%;border:2px solid #D9CFC0;background:#fff}
+.fs.done .fd{background:#C96442;border-color:#C96442}
+.fs.now .fd{background:#E9B44C;border-color:#E9B44C;box-shadow:0 0 0 5px rgba(233,180,76,.22)}
+.fs.you .fd{background:#fff;border-color:#E9B44C;box-shadow:0 0 0 5px rgba(233,180,76,.22)}
+.fl{font-size:11.5px;margin-top:8px;color:var(--sub);text-align:center;line-height:1.3}
+.fs.done .fl,.fs.now .fl,.fs.you .fl{color:var(--ink)}
+.fs.you .fl b{color:#B4802A}
+.fbar{height:2px;background:#EDE5D8;flex:1;margin-top:6px;min-width:14px}
+.fbar.on{background:#C96442}
 .vi{padding:13px 16px;display:flex;align-items:baseline;gap:10px}
 .vt{font-size:14px;font-weight:600;flex:1;line-height:1.35}
 .vp{font-size:21px;font-weight:300}.vp small{font-size:11px;color:var(--sub)}
@@ -238,16 +271,27 @@ select{border:1.5px solid var(--line);border-radius:13px;padding:10px 13px;font-
 """
 
 
+def my_avatar() -> str:
+    """The portrait YOU asked for in chapter 2 - the app just reads the studio's
+    ledger. Falls back to the stock robot until one exists."""
+    try:
+        from world import portrait
+        got = portrait.latest()
+        return got["url"] if got else "/static/art/robot-avatar.png"
+    except Exception:
+        return "/static/art/robot-avatar.png"
+
+
 def page(tab: str, body: str, refresh: bool = True) -> str:
     tabs = "".join(
         f'<a class="tab{" on" if tab == t.lower() else ""}" href="/{"" if t == "Now" else t.lower()}">{t}</a>'
-        for t in ("Now", "Channel", "State"))
+        for t in ("Now", "Channel", "State", "World"))
     meta = '<meta http-equiv="refresh" content="4">' if refresh else ""
     return f"""<!doctype html><html><head><meta charset="utf-8">{meta}
 <title>Vibe Studio</title><style>{CSS}</style></head><body>
 <div class="top"><img class="logo" src="/static/art/gem-3.png"><span class="brand">Vibe Studio</span>
 <div class="tabs">{tabs}</div>
-<span class="me"><img src="/static/art/robot-avatar.png"></span></div>
+<span class="me"><img src="{my_avatar()}"></span></div>
 <div class="wrap">{body}</div></body></html>"""
 
 
@@ -279,6 +323,11 @@ def now_body() -> str:
     st = state.load()
     b = busy()
     busy_html = f'<div class="busy"><span class="dot"></span>{b} is running — this page refreshes itself</div>' if b else ""
+    if st.get("run_id"):
+        # the live map of the workflow (nodes+edges dumped from the real
+        # Workflow object), above every card of a running lap
+        from app import flowmap
+        busy_html += flowmap.render(st, lap.where().get("phase", ""), my_avatar())
 
     if not st.get("run_id"):
         return busy_html + f"""
@@ -363,7 +412,7 @@ def now_body() -> str:
         topic, angle = parse_pitch(lap.latest_proposal())
         return busy_html + f"""
 <div class="card"><div class="ql" style="margin-top:0">PROPOSAL FOR YOUR NEXT VIDEO · LAP {st.get('lap','?')}</div>
-<div class="prop"><img src="/static/art/robot-avatar.png">
+<div class="prop"><img src="{my_avatar()}">
 <div style="flex:1"><div class="h0" style="font-size:21px">{topic}</div>
 <div class="h0s" style="margin-top:6px">{angle}</div></div></div>
 <form method="post" action="/ui/say">
@@ -392,7 +441,12 @@ def channel_page(request: Request):
             views = n["c"] or 0
             avg = (n["w"] or 0) / (max(1, views) * v["duration_ms"]) * 100
             thumb = v["thumb_ref"] or "/static/art/thumb-clouds.png"
-            cards.append(f"""<div class="v"><img src="{thumb}">
+            ref = v["video_ref"] or ""
+            playable = ref.endswith(".mp4") and (
+                Path(__file__).parent / ref.lstrip("/")).exists()
+            media = (f'<video src="{ref}" poster="{thumb}" controls preload="none"></video>'
+                     if playable else f'<img src="{thumb}">')
+            cards.append(f"""<div class="v">{media}
 <div class="vi"><span class="mchip" style="font-size:10px">LAP {v['lap']}</span>
 <span class="vt">{v['title']}</span><span class="vp">{avg:.0f}<small>% · {views} views</small></span></div></div>""")
             if i == 0:
@@ -407,7 +461,7 @@ def channel_page(request: Request):
 <div class="h0" style="font-size:19px">Your channel</div>
 <div class="h0s" style="margin-bottom:18px">every video the agent has published · 24 panel viewers watch each one</div>
 <div class="grid">{"".join(cards) or "<span class=note>nothing on the wall yet — finish a lap</span>"}</div>{made}</div>"""
-    return page("channel", body)
+    return page("channel", body, refresh="static" not in request.query_params)
 
 
 @app.get("/state", response_class=HTMLResponse)
@@ -433,10 +487,93 @@ def state_page(request: Request):
 <div class="row"><img src="/static/art/gem-4.png"><div class="rn"><b>World</b><span>BigQuery</span></div><div class="rv mono">{world}</div><span class="life">outlives every run</span></div>
 <div class="row"><img src="/static/art/gem-5.png"><div class="rn"><b>Memory</b><span>Memory Bank</span></div><div class="rv">{mem_html}</div><span class="life">the channel's</span></div>
 <div class="kill"><b>Kill anything.</b> These five survive.</div>"""
-    return page("state", f'<div class="card" style="padding-top:20px">{rows}</div>')
+    return page("state", f'<div class="card" style="padding-top:20px">{rows}</div>', refresh="static" not in request.query_params)
+
+
+# the three banners scripts/graph.sh prints, in order
+GRAPH_STEPS = [("1/3 CONNECT + LOAD", "the dataset, the vendor pack, the graph DDL"),
+               ("2/3 STORE", "your wall rows enter the world"),
+               ("3/3 READ", "the readings your briefs cite")]
+
+
+def graph_steps(log: str) -> str:
+    """The same flow strip as the workflow map: a step turns solid when the
+    script actually printed its banner - nothing here is on a timer."""
+    out = []
+    for i, (banner, why) in enumerate(GRAPH_STEPS):
+        done = "done" if f"══ {banner} ══" in log else ""
+        out.append(f'<div class="fs {done}"><div class="fd"></div>'
+                   f'<div class="fl"><b>{banner.split("/3 ")[1]}</b><br>{why}</div></div>')
+        if i < len(GRAPH_STEPS) - 1:
+            out.append(f'<div class="fbar{" on" if done else ""}"></div>')
+    return ('<div style="display:flex;align-items:flex-start;gap:6px">'
+            + "".join(out) + '</div>')
+
+
+def graph_readings() -> str:
+    """runs/graph_report.json - written by bqgraph/report.py, the same payload
+    the research node gets. The page never touches BigQuery itself."""
+    f = config.RUNS / "graph_report.json"
+    if not f.exists():
+        return ""
+    rep = json.loads(f.read_text())
+    cards = []
+    for q in rep.get("queries", []):
+        rows = "".join(
+            '<div class="note">' + " · ".join(f"{k} <b>{v}</b>" for k, v in r.items()
+                                               if not k.endswith("_id"))
+            + "</div>" for r in q["rows"][:5]) or '<div class="note">no rows yet</div>'
+        cards.append(f'<div class="ql">{q["id"]} · {q["question"]} '
+                     f'<span class="mchip mg">engine {q["engine"]}</span></div>{rows}')
+    if rep.get("note"):
+        cards.append(f'<div class="kill">{rep["note"]}</div>')
+    return "".join(cards)
+
+
+@app.get("/world", response_class=HTMLResponse)
+def world_page(request: Request):
+    """The BigQuery chapter as one button: it runs the very script the codelab
+    prints, tails its output while it runs, then shows what it read back."""
+    running = busy() == "graph"
+    log_file = config.RUNS / "graph_run.log"
+    log = log_file.read_text() if log_file.exists() else ""
+
+    if running:
+        head = ('<div class="busy"><span class="dot"></span>running '
+                '<span class="mono">bash scripts/graph.sh</span> — creating the '
+                'dataset, declaring the graph, querying it (~40s)</div>')
+    else:
+        label = "Run it again ▸" if log else "Build + read the graph ▸"
+        head = (f'<form method="post" action="/ui/graph"><div class="foot">'
+                f'<span class="mono" style="font-size:12px;color:var(--sub)">'
+                f'runs: bash scripts/graph.sh</span>'
+                f'<button class="go">{label}</button></div></form>')
+
+    tail = (f'<div class="ql">LIVE OUTPUT</div><pre class="mono" style="font-size:12px;'
+            f'line-height:1.55;white-space:pre-wrap;color:#5C5346;margin:0">'
+            f'{log[-1700:]}</pre>' if log else
+            '<div class="note">Nothing here yet. The button creates a dataset in '
+            'YOUR project, loads the vendor pack, declares <span class="mono">'
+            'taste_graph</span> over those tables, pushes your own rows in, and '
+            'reads three questions back.</div>')
+
+    body = (f'<div class="card"><div class="h0">The world graph</div>'
+            f'<div class="h0s">BigQuery · dataset <span class="mono">{config.DATASET}</span>'
+            f' — the rung that outlives this whole VM</div>'
+            f'<div class="flow" style="margin-top:20px">{graph_steps(log)}</div>'
+            f'{head}</div>'
+            f'<div class="card" style="margin-top:18px">{graph_readings()}{tail}</div>')
+    # ?static freezes the 4s auto-refresh - handy while reading a long log
+    return page("world", body, refresh="static" not in request.query_params)
 
 
 # ── buttons = the same CLIs the student runs ──
+@app.post("/ui/graph")
+def ui_graph():
+    spawn_sh("graph", "scripts/graph.sh")
+    return RedirectResponse("/world", status_code=303)
+
+
 @app.post("/ui/run")
 def ui_run(hint: str = Form("")):
     spawn("run", hint)

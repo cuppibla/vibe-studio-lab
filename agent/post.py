@@ -13,10 +13,16 @@ POLICY_BLACKLIST = ["competitor", "hateful", "gore"]
 
 
 def editor(node_input):
+    """Cut the shots together. The farm's clips are prebaked receipts, so the
+    real playable artifact is built from the thumbnail the studio generated
+    from YOUR brief - that is what plays on the Channel wall."""
+    from world import renderfarm
     st = state.load()
     urls = [s.get("url") for s in st["shots"] if s.get("url")]
-    final_ref = f"runs/final_{st['run_id']}.mp4"
-    (config.ROOT / final_ref).write_text("PREBAKED FINAL CUT\n" + "\n".join(urls))
+    final_ref = renderfarm.final_cut(st["run_id"], (st.get("thumb") or {}).get("ref", ""))
+    if not final_ref:                       # no ffmpeg: an honest manifest, not a fake .mp4
+        final_ref = f"runs/final_{st['run_id']}.txt"
+        (config.ROOT / final_ref).write_text("PREBAKED CUT\n" + "\n".join(urls))
     return Event(output={"final_ref": final_ref, "n_shots": len(urls)})
 
 

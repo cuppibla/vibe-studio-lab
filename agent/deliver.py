@@ -16,7 +16,7 @@ LEDGER = config.RUNS / "delivered.json"
 
 
 def find_pending():
-    """Newest (user, session, call) still waiting on a render_submit."""
+    """Newest (user, session, call) still waiting - avatar OR render."""
     async def _scan():
         service = drive.svc()
         found = []
@@ -24,7 +24,7 @@ def find_pending():
             resp = await service.list_sessions(app_name=config.APP, user_id=user)
             for s in resp.sessions:
                 for cid, name, r in await drive.pending(s.id, user_id=user):
-                    if name == "render_submit":
+                    if name in ("render_submit", "avatar_submit", "avatar_restyle"):
                         found.append((s.last_update_time, user, s.id, cid, name, r))
         found.sort()
         return found[-1] if found else None
@@ -38,6 +38,26 @@ def main():
         return
     _, user, sid, cid, name, resp = hit
     print(f"  found it: session {sid} (user {user}) · {name} id={str(cid)[:12]}…")
+
+    if name in ("avatar_submit", "avatar_restyle"):
+        from world import portrait
+        print("  waiting for the portrait studio (~20-30s)…")
+        for _ in range(40):
+            job = portrait.poll(resp.get("job_id", ""))
+            if job.get("status") == "done":
+                out = drive.run(drive.answer(render_desk, sid, cid, name,
+                                             {"status": "done", "kind": "avatar",
+                                              "url": job["url"]}, user_id=user))
+                print("── result delivered (same id) → the run continued ──")
+                print(f"  your avatar: {job['url']}"
+                      + ("" if job.get("generated") else "   (fallback image)"))
+                print(f"  desk: {str(out)[:120]}")
+                LEDGER.write_text(json.dumps({"user": user, "session": sid}))
+                return
+            time.sleep(2)
+        print("portrait still cooking — run deliver again")
+        return
+
     print("  polling the farm until the job is done…")
     for _ in range(15):
         jobs = {j["id"]: j for j in broker.poll()}

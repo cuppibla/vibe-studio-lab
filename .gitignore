@@ -12,3 +12,8 @@ app/static/thumbs/
 
 # author-side capture scratch
 codelab-img/src/decor/*-s.png
+
+# local codelab preview build
+.preview/
+app/static/renders/
+app/static/avatars/

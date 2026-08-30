@@ -29,15 +29,15 @@ watch it work:
 
 | knowledge point | chapters | your hands-on |
 |---|---|---|
-| **long running** — pending is a value, not a thread | ⏳ 📬 | watch (the code ships filled) |
-| **workflow** + human-in-the-loop pauses | 🗺️ 💬 🏁 📺 | one word: `mode="task"` |
+| **long running** — pending is a value, not a thread | ⏳ 📬 | describe your avatar, deliver it by hand |
+| **workflow** — line · router · fan-out + a human pause | 🔺 🗺️ 🏁 📺 | run the three shapes, then draw the real edges |
 | **state** — the ladder of lifetimes | 💾 | one prefix: `user:` |
 | **BigQuery graph** — world state | 🌍 | watch |
 | **Memory Bank** — learned state | 🧠 | one line: `memory.recall()` |
 
 This lab is **two parts**, and every chapter belongs to exactly one:
 
-**Part 1 · An agent that waits (⏳ 📬 🗺️ 💬 🏁 📺).** How a workflow becomes
+**Part 1 · An agent that waits (⏳ 📬 🔺 🗺️ 🏁 📺).** How a workflow becomes
 a long-running agent: one wait resumed once, then a graph orchestrating many
 waits and two human questions.
 
@@ -103,9 +103,11 @@ correct: the app chapter 🗺️ boots it), ending in `PREFLIGHT GREEN`.
 <aside class="positive">
 <b>The repo, one breath.</b> <code>agent/</code> is the backend you'll read
 and lightly edit · <code>vibestudio/</code> is an 8-line adk web entry ·
-<code>app/</code> is Vibe Studio (given) · <code>world/</code> is the render
-farm + platform (given) · <code>bqgraph/</code> is the graph chapter 🌍 ·
-<code>checks/</code> holds the verification gates.
+<code>shape1_line/ shape2_router/ shape3_fanout/</code> are the three
+sandbox workflows of chapter 🔺 · <code>app/</code> is Vibe Studio (given) ·
+<code>world/</code> is the render farm + platform (given) ·
+<code>bqgraph/</code> is the graph chapter 🌍 · <code>checks/</code> holds
+the verification gates.
 </aside>
 
 <aside class="positive">
@@ -114,36 +116,36 @@ farm + platform (given) · <code>bqgraph/</code> is the graph chapter 🌍 ·
 (sessions, state, the wall, BigQuery, the bank) — never a source grep. Green
 means the chapter's idea physically happened. Each chapter's Read more names
 its gate, they are all optional, and <code>cloudshell edit
-checks/check.py</code> lets you read any of them — reviewing the gate you
+~/vibe-studio-lab/checks/check.py</code> lets you read any of them — reviewing the gate you
 just passed is a fine way to review the chapter.
 </aside>
 
-## ⏳ Start a render and watch it wait
+## ⏳ Make your avatar — and watch the agent wait
 Duration: 0:06:00
 ![LongRunningFunctionTool — the job goes out, the receipt comes back](codelab-img/d6-lrft.png)
 
 👀 What the picture shows: your text reaches the desk, the desk calls its
 ONE tool — and the wrapper does two things in the same instant: the job
-leaves for the farm (green), and a receipt comes straight back (orange).
+leaves for the studio (green), and a receipt comes straight back (orange).
 The agent says WAITING and the turn is OVER. No blocking, no thread — the
 only trace is a row in `sessions.db`. You are about to live this exact
-picture.
+picture, and the job leaving is a real image model drawing your face.
 
 
-- **What** — type one slow request at a raw agent, watch it stop without finishing, then kill the server and prove the wait survived.
-- **Why** — the lab's load-bearing idea: *pending is a value in the session log, not a thread in memory.*
-- **How** — read who you're talking to → boot adk web → type two lines → kill and restart.
+- **What** — ask a raw agent for YOUR creator avatar, watch it stop without finishing while a real image model works elsewhere, then kill the server and prove the wait survived.
+- **Why** — the lab's load-bearing idea: *pending is a value in the session log, not a thread in memory.* Slow work is worth waiting for — you are about to wait for something you actually want.
+- **How** — read the agent → boot adk web → describe your avatar → watch WAITING → kill and restart.
 
 ### Who you are about to talk to
 
-👉📖 Open the agent you are about to run — eight lines, read only:
+👉💻 In **tab 1**, open `agent.py` in the Cloud Shell Editor by running:
 
 ```console
-cd ~/vibe-studio-lab
-cloudshell edit vibestudio/agent.py
+cloudshell edit ~/vibe-studio-lab/vibestudio/agent.py
 ```
 
-👉 In `vibestudio/agent.py`, the whole file is two meaningful lines:
+👉📖 In `vibestudio/agent.py` — read only, nothing to change — the whole
+file is two meaningful lines:
 
 ```python
 from agent.desk import render_desk
@@ -154,21 +156,40 @@ root_agent = render_desk
 - `root_agent = render_desk` — adk web looks for a folder with an
   `agent.py` exporting `root_agent`; that is the entire discovery
   convention, and the folder name (`vibestudio`) becomes the app name.
-- `render_desk` itself lives in `agent/desk.py`. 👉 Open `agent/desk.py`
-  in the same editor — in its tool list, the following line is this
-  chapter's vocabulary word:
+- `render_desk` itself lives in `agent/desk.py` — open that one too.
+
+👉💻 In **tab 1**, open `desk.py` in the Cloud Shell Editor by running:
+
+```console
+cloudshell edit ~/vibe-studio-lab/agent/desk.py
+```
+
+👉📖 In `desk.py` — read only, nothing to change — look at the tool list.
+This line is the chapter's vocabulary word:
 
 ```python
     tools=[LongRunningFunctionTool(render_submit)],
 ```
 
 **`LongRunningFunctionTool`** is the vocabulary word of this chapter: it
-wraps a plain function (`render_submit` — submits a shot to the farm) and
-tells ADK "this tool returns a RECEIPT immediately; the real result comes
-later." That one wrapper is what makes the wait you are about to see
-possible. This desk is not a practice dummy: **in the publish chapter (🏁)
+wraps a plain function and tells ADK "this tool returns a RECEIPT
+immediately; the real result comes later." The desk wraps two of them —
+`avatar_submit` (the portrait studio, which you are about to use) and
+`render_submit` (the shot farm, which the workflow uses later). That one
+wrapper is what makes the wait you are about to see possible. This desk is not a practice dummy: **in the publish chapter (🏁)
 it is the exact agent that renders your video's three shots.** Here you meet it alone, to
 see one wait clearly.
+
+### What you are about to do, in order
+
+1. read the 8-line agent you are about to talk to (editor, **tab 1**)
+2. start `adk web` in a **second** terminal tab — and leave that tab alone
+3. open it in the browser and type one line: `Make my avatar: a cute cat`
+4. watch it stop at **WAITING** — and read why
+5. kill the dev UI and start it again — the wait is still there
+
+Everything you need is spelled out below; the explanations come after each
+action, not before.
 
 ### Start adk web (the dev UI)
 
@@ -177,35 +198,79 @@ see one wait clearly.
 ```console
 cd ~/vibe-studio-lab
 source .venv/bin/activate
-adk web . --port 8000 --allow_origins "*" --session_service_uri "sqlite+aiosqlite:///$PWD/runs/sessions.db"
+adk web . --port 8000 --allow_origins "*" --reload_agents --session_service_uri "sqlite+aiosqlite:///$PWD/runs/sessions.db"
 ```
 
-👉🔬 Click **Web Preview → Change port → 8000**. Nothing to type yet — you
-should be looking at this:
+👉🔬 Click **Web Preview → Change port → 8000**, then click **Select an
+app** at the top left and pick **`vibestudio`**:
 
-![adk web, fresh — the app dropdown found vibestudio](codelab-img/s1-devui-landing.png)
+![adk web, fresh — pick vibestudio from the app list](codelab-img/s1-devui-landing.png)
 
-👀 The dropdown says `vibestudio` because that folder has an `agent.py`
-exporting `root_agent` — that's the whole discovery convention.
+👀 Every folder holding an `agent.py` that exports `root_agent` shows up in
+that list — that is the whole discovery convention. `vibestudio` is this
+studio's desk; the three `shape*` apps are tiny workflows you will run in
+chapter 🔺.
 
 ### Type the slow request
 
-👉🔬 In the chat box, type exactly this:
+👉🔬 In the chat box, ask for **your own avatar** — the face your channel
+will wear for the rest of this lab. **Two or three words are enough**: name
+a creature, not a style.
+
+Copy any one of these, or write your own after the colon:
 
 ```
-Render this one shot: a tiny robot waves hello.
+Make my avatar: a cute cat
 ```
+
+```
+Make my avatar: a red panda
+```
+
+```
+Make my avatar: a grumpy owl
+```
+
+```
+Make my avatar: a small red robot in a hoodie
+```
+
+The part after `Make my avatar:` is **yours** — that is the only text the
+studio takes from you.
+
+👀 Why so short? Because the studio owns the look, not you. The tool builds
+the real prompt in three layers, and only the first one contains your
+words:
+
+| layer | who writes it | what it does |
+|---|---|---|
+| **ANCHOR** | you | *"The character is: a cute cat"* |
+| **STYLE-LOCK** | the studio | low-poly facets · the cream/terracotta/sage palette · soft studio light |
+| **CONSTRAINTS** | the studio | head-and-shoulders, centered, square, plain cream background, no text |
+
+Everyone in the room types something different and everyone gets the same
+house style — that is what a style-lock is for. (You will read the code in
+the next chapter.)
 
 *You should see* one tool call, the word **WAITING** — and then nothing. No
-spinner. The turn is over:
+spinner, no progress bar. The turn is over:
 
-![The wait, as data — the call, the pending receipt, WAITING](codelab-img/s1-waiting.png)
+![The wait, as data — the call, the pending receipt, WAITING](codelab-img/s1-avatar-waiting.png)
 
-👀 Click the `render_submit` call: its response is literally
-`{"status": "pending", "job_id": "job_0", …}`. `pending` is not an error and
+👀 Click the `avatar_submit` call: its response is literally
+`{"status": "pending", "job_id": "por_…", …}`. `pending` is not an error and
 not a promise object — it is a **value inside a normal response**, sitting
-in the session log. The farm is rendering; the agent has nothing left to do;
-the invocation ended honestly.
+in the session log.
+
+And this is the part worth pausing on: **a real job is running right now, in
+a process the agent does not own.** `avatar_submit` started a detached
+worker that is calling an image model — 20 to 30 seconds of genuine work —
+and then returned instantly. The agent has nothing left to do; the
+invocation ended honestly; your portrait is being drawn anyway.
+
+👀 One more thing to notice for later: under that call sits a small box,
+**"Enter your response…"**. Leave it alone for now — the next chapter is
+you typing into it.
 
 👉🔬 Ask the obvious thing — type exactly this:
 
@@ -225,11 +290,11 @@ then Enter retypes the last line for you):
 ```console
 cd ~/vibe-studio-lab
 source .venv/bin/activate
-adk web . --port 8000 --allow_origins "*" --session_service_uri "sqlite+aiosqlite:///$PWD/runs/sessions.db"
+adk web . --port 8000 --allow_origins "*" --reload_agents --session_service_uri "sqlite+aiosqlite:///$PWD/runs/sessions.db"
 ```
 
-👉🔬 Reload the Preview, reopen your session from the **NEW SESSION ▾**
-picker. Everything is still there: the call, the pending receipt, your
+👉🔬 Reload the Preview, pick **`vibestudio`** again, then reopen your
+session from the **NEW SESSION ▾** picker. Everything is still there: the call, the pending receipt, your
 unanswered question. **The wait is a row in `runs/sessions.db`. It does not
 need any process to exist.**
 
@@ -259,7 +324,7 @@ id can close. Prose and results ride different rails.
 <b>Optional check — run it only if you want proof.</b> In tab 1: <code>python -m checks.check one</code>. It asserts that your typed session really carries a long-running call (the second half goes green after the delivery chapter 📬). Nothing later depends on running this.
 </aside>
 
-## 📬 Deliver the render result
+## 📬 Deliver your avatar
 Duration: 0:05:00
 
 ![What long-running actually means — five moments, one surviving row](codelab-img/d3-longrunning.png)
@@ -271,20 +336,178 @@ process delivers the result with the SAME call id, and the conversation
 continues. Moments ①–④ already happened in the last chapter; this chapter
 is moment ⑤.
 
-### The three lines that resume anything
+### What you are about to do, in order
+
+Everything in steps 1-4 happens **in the browser**, in the dev UI you
+already have open — you will not touch a terminal until step 5:
+
+1. type `{"status": "done"}` into the response box under the pending call
+2. watch the desk wake up and say **AVATAR READY**
+3. type one more line in the chat: `Give my avatar a tiny party hat`
+4. deliver that one the same way — **AVATAR READY** again
+5. now open the avatars folder in the editor and compare the two pictures
+6. **then** read the two pieces of code that made it work (state management)
+
+### 1 · You be the process
 
 👀 The farm finished your shot long ago — but nothing tells the agent. ADK
 never polls your farm; no callback is registered anywhere. Someone must
 **deliver the result back into the session**, addressed by that call's id.
-👉📖 Open the file and read only — nothing to change; it ships complete:
+Right now, that someone is you — by hand, in the dev UI.
 
-```console
-cd ~/vibe-studio-lab
-cloudshell edit agent/drive.py
+👉🔬 Under the pending `avatar_submit` call sits a small input,
+**"Enter your response…"** — ADK's built-in way to answer a long-running
+call. Type exactly this and press the send arrow:
+
+```
+{"status": "done"}
 ```
 
-👉 In `answer()`, the following three lines are the entire resume
-mechanism:
+That is the entire message. You are not carrying the picture — the studio
+already wrote it to disk and recorded it. All the session needs is *"that
+call is finished"*, addressed to the right id.
+
+*You should see* the desk wake up and reply **AVATAR READY**:
+
+![You delivered it by hand — your response, then the desk continuing](codelab-img/s2-avatar-delivered.png)
+
+👀 Read the two new rows. **#5** is a *user* turn that contains no text at
+all — only a `function_response` carrying the SAME call id. **#6** is the
+desk, awake again, answering with the finished map. Nothing restarted;
+nothing was waiting in memory. You typed a value into a row, and a
+conversation that ended minutes ago picked up mid-sentence.
+
+### 2 · Turn 2 — change it without describing it again
+
+👉🔬 Back in the chat box, ask for one change. Again: short. `Give my avatar
+a tiny party hat` · `add round glasses` · `put it in a circular frame`:
+
+```
+Give my avatar a tiny party hat
+```
+
+*You should see* the same shape as before — a call, a pending receipt,
+WAITING. Deliver it the same way when the studio is done (`{"status":
+"done"}` in the response box), and the desk says **AVATAR READY** again.
+
+👀 You just did the whole thing. **Now the code that made it work** — and
+it is state management, not what people expect. Turn 2 never re-described
+the cat. The obvious way to keep a character consistent
+is a chat session that remembers — but the worker that drew turn 1 *exited
+minutes ago*, and its memory went with it.
+
+What survived is a PNG on disk and a row in `runs/portraits.json` saying
+which job it came from. Here is the code that uses them —
+`world/portrait.py`, inside `_generate()`:
+
+```python
+    parent = _load()["jobs"].get(job.get("parent") or "", {})
+    parent_png = (config.ROOT / "app" / parent.get("url", "").lstrip("/")
+                  if parent.get("url", "").startswith(WEB) else None)
+    if parent_png and parent_png.exists():
+        # TURN 2 - the previous image IS the context; no re-describing the character
+        contents = [gt.Part.from_bytes(data=parent_png.read_bytes(),
+                                       mime_type="image/png"),
+                    change_prompt(job["description"])]
+    else:
+        contents = portrait_prompt(job["description"])
+```
+
+Read the branch: no parent → build the layered prompt from scratch. Has a
+parent → **load that file from disk** and send the bytes back to the model
+with the change. The ledger row is the only thing that knows they are
+related.
+
+**In long-running work, the state that matters is the state you can pick up
+after everything has died.** In-process memory is not that; files, sessions
+and ledgers are.
+
+### 3 · Now look at what you waited for
+
+Both portraits are on disk now. One trip to the editor and you can see them.
+
+<aside class="negative">
+<b>Use tab 1 — not the tab running adk web.</b> Tab 2 is busy with the dev
+UI; pressing Ctrl+C there would close the session you have been typing into.
+Open a terminal that is idle (tab 1, the one you installed in) for the
+command below.
+</aside>
+
+👉💻 In **tab 1**, open the folder the studio writes into — the Cloud Shell
+Editor previews images, so click the two newest PNGs:
+
+```console
+cloudshell edit ~/vibe-studio-lab/app/static/avatars
+```
+
+*Our run typed "a cute cat", then asked for a hat:*
+
+![Turn 1 and turn 2 — the character survived, because a file did](codelab-img/s2-avatar-multiturn.png)
+
+👀 That file did not exist when you pressed Enter. A model drew it while the
+agent was doing nothing at all — and the only thing connecting the two is a
+call id. **This is the whole point of long-running work: the valuable part
+takes time, so the conversation must be able to survive it.**
+
+<aside class="positive">
+<b>What about the video shots later?</b> Chapter 🏁 renders three shots
+through the same mechanism, but that farm is <b>prebaked</b>
+(<code>world/broker.py</code> answers on a fixed clock) — three real renders
+would cost you half an hour. Your avatar is the real thing in this lab: a
+genuine model call, genuinely slow, genuinely yours.
+</aside>
+
+### 4 · How that state was managed — two pieces of code
+
+👀 The ledger is the *studio's* record. The **agent** keeps its own, and ADK
+gives you a specific place to write it: a **callback**. `agent/desk.py` ends
+with this, and it runs after every turn the desk takes:
+
+```python
+def remember_avatar(callback_context) -> None:
+    from world import portrait
+    latest = portrait.latest()
+    if not latest:
+        return
+    state, url, who = callback_context.state, latest["url"], portrait.anchor(latest)
+    if state.get("user:avatar") != url or state.get("user:avatar_anchor") != who:
+        state["user:avatar"] = url          # user: = this user, every session
+        state["user:avatar_anchor"] = who   # the words that started it, from the ledger
+```
+
+Three things to take from it:
+
+- **`callback_context.state` is writable.** Assign to it and ADK turns the
+  change into a *state delta* on the event log — no save call, no database
+  code. (This desk uses `after_agent_callback`; there are
+  before/after hooks for the agent, the model and every tool.)
+- **The `user:` prefix picks the lifetime.** These keys belong to the user,
+  not to this conversation — chapter 💾 is entirely about that one word.
+- **It is idempotent.** It compares before writing, so a hundred turns
+  produce one delta.
+
+👉🔬 See it: click the **State** tab on the left of the dev UI (browse only,
+nothing to type):
+
+![The callback's work — user:avatar written beside the two-turn story](codelab-img/s2-avatar-state.png)
+
+One last thing to notice before you move on: **you will never type that
+JSON again.** From here the app's buttons, the repair agent and the deadline
+all send the same message for you — same shape, same call id, no human in
+the loop unless you want one.
+
+*What you learned:* resume = one `function_response` with the same call id —
+and it does not care who sends it. Two long-running turns produced one
+consistent character, and neither of them needed a process to stay alive:
+the style came from a locked prompt, the continuity came from a file. You
+will see that face wearing the app in the next chapter, and on the room's
+platform at the end.
+
+### Read more (optional)
+
+**The three lines behind the send button.** Everything above resumed through
+one function — `answer()` in `agent/drive.py`
+(`cloudshell edit ~/vibe-studio-lab/agent/drive.py`):
 
 <!-- code: RESUME -->
 ```python
@@ -293,57 +516,31 @@ mechanism:
     return await _drive(node, session_id, [part], user_id)
 ```
 
-Three lines: a `Part` carrying a **`FunctionResponse`** with the **same
-`id`** as the pending call, driven into the session as a new message. Every
-resume in this lab — machine results, your form answers, the deadline —
-goes through these three lines.
-
-👀 While the file is open, two names to keep, ten lines up: `runner_for()`
-builds `Runner(app_name=…, session_service=svc(), auto_create_session=True)`
-— the **Runner** is ADK's engine room; and `svc()` is one line,
-`DatabaseSessionService(db_url=…)` — the **SessionService**, pointing at the
-same sqlite file adk web uses. The Runner *drives*; the SessionService
-*remembers*.
-
-### Deliver it
-
-👉💻 Back in **tab 1** — your work terminal, the one you installed in
-(tab 2 stays busy running adk web). `agent/deliver.py` is a 40-line helper
-that finds the pending call, waits for the farm, and sends the result
-through the three lines you just read — run it:
-
-```console
-cd ~/vibe-studio-lab
-source .venv/bin/activate
-python -m agent.deliver
-```
-
-*Our real run:*
-
-```
-── result delivered (same id) → the run continued ──
-  desk: {"a tiny robot waves hello.": "prebaked/shot_0.mp4"}
-```
-
-👉🔬 Reload your session in adk web (just browse, nothing to type):
-
-![The whole story in six events — call, pending, WAITING, the delivered result, the answer](codelab-img/s1-adkweb-anatomy.png)
-
-👀 Two new events: a **user** turn containing no text at all — only a
-`function_response`, matched by id — and the desk's final answer. A separate
-process resumed a conversation it never started. That is the whole chapter.
-
-*What you learned:* resume = one `function_response` with the same call id —
-delivered by whatever process you choose.
-
-### Read more (optional)
+A `Part` carrying a **`FunctionResponse`** with the **same `id`**, driven
+into the session as a new message. That is the whole delivery path: the dev
+UI does it when you press send, and every driver in this lab calls this
+function. Ten lines above it live two names worth keeping —
+`Runner(app_name=…, session_service=svc(), auto_create_session=True)` (the
+Runner drives) and `svc() = DatabaseSessionService(db_url=…)` (the
+SessionService remembers).
 
 <aside class="positive">
-<b>deliver.py, opened.</b> <code>cloudshell edit agent/deliver.py</code> —
-three moves: FIND the newest session holding a pending
-<code>render_submit</code> (the scan from the ⏳ chapter's Read more) → WAIT
-until the farm says done → SEND via <code>drive.answer(...)</code>. The only
-ADK in the file is the three lines you already read.
+<b>The same delivery, as a script.</b> You typed the result; a real system
+polls for it. <code>agent/deliver.py</code> is that script in 40 lines:
+FIND the newest session holding a pending call → WAIT until the studio (or
+the farm) says done → SEND via <code>drive.answer(...)</code>. Try it on a
+second avatar: type another <code>Make my avatar: …</code> in adk web, leave
+the response box alone, then in <b>tab 1</b> run:
+
+<pre><code>cd ~/vibe-studio-lab
+source .venv/bin/activate
+python -m agent.deliver</code></pre>
+
+Our real run printed
+<code>── result delivered (same id) → the run continued ──</code> and the
+session moved on by itself. Read it with
+<code>cloudshell edit ~/vibe-studio-lab/agent/deliver.py</code> — the only
+ADK in the whole file is the three lines you already know.
 </aside>
 
 <aside class="positive">
@@ -362,40 +559,353 @@ target.
 <b>re-runs its nodes</b> — an external submit inside a node would submit
 (and pay) twice. That's why machines wait in a plain session (the desk) and
 graphs pause only for people: re-asking a person is safe; re-charging a
-render is not. Chapter 5 shows the two working together.
+render is not. Chapter 🏁 shows the two working together.
 </aside>
 
 <aside class="positive">
 <b>Optional check — run it only if you want proof.</b> In tab 1: <code>python -m checks.check one</code>. It asserts the wait existed AND every call was answered by id — both wait chapters, physically proven in sessions.db. Nothing later depends on running this.
 </aside>
 
-## 🗺️ Boot the app and run the workflow
-Duration: 0:06:00
+## 🔺 Three shapes you can run
+Duration: 0:09:00
 
-![The workflow — agent/graph.py as a picture](codelab-img/d1-workflow.png)
+- **What** — run the three shapes every workflow is made of, one at a time, in the dev UI you already have open.
+- **Why** — the graph you build next is a line, a router and a fan-out, nothing else; and its nodes hand work to each other through ONE shared state.
+- **How** — same adk web tab, switch the app dropdown three times: ① line → ② router → ③ fan-out.
 
-👀 What the picture shows: this IS `agent/graph.py`, box for box. Four sage
-research nodes fan out from START; the yellow bar is the join that waits
-for all four; then a single line runs through the two purple model nodes
-(`topic_gate`, `scripter`) and the yellow human pause (`creative_gate`) to
-the stored script. Every arrow is an edge you are about to read in the
-file.
+### Why a workflow at all?
 
-- **What** — read the four-way parallel research workflow, boot the frontend, and watch your backend run it end to end.
-- **Why** — in a workflow, parallelism is a *drawing*, not thread code; a "form" is nothing but a schema riding an interrupt.
-- **How** — read the shape → boot Vibe Studio → start a lap → notice what it never asked you.
+👀 So far one agent did one slow thing. **Making a video is not one thing.**
+Before a single frame exists, the channel has to: read what is trending ·
+recall what it learned · look at its own back catalogue · query the audience
+graph · agree with YOU on a topic · take your creative choices · turn all of
+that into a 3-shot script · render those shots · wait for your approval ·
+publish.
 
-### The shape (read, don't write)
+You could write that as one enormous prompt and hope. A **workflow** says
+it out loud instead: each step is a node, the order is edges, and the parts
+that do not depend on each other run at the same time. Three things you get
+that a mega-prompt cannot give you:
 
-👉📖 Open the workflow and read only — both pieces ship complete:
+| | |
+|---|---|
+| **Parallelism you can see** | four research nodes leave START together; nobody wrote a thread |
+| **Pauses that are legal** | a node can stop and wait for a person without holding a process open |
+| **A shape you can debug** | when lap 7 goes wrong you know *which node*, because the run is a path, not a paragraph |
+
+That is three shapes' worth of vocabulary — and you get to run each one
+before building the big graph out of them.
+
+### Where you run them
+
+👉🌐 Go back to the **browser tab with adk web** — port 8000, still running
+in **tab 2** since chapter ⏳, so there is nothing to restart. If you closed
+that terminal tab, start it again:
 
 ```console
 cd ~/vibe-studio-lab
-cloudshell edit agent/graph.py
+source .venv/bin/activate
+adk web . --port 8000 --allow_origins "*" --reload_agents --session_service_uri "sqlite+aiosqlite:///$PWD/runs/sessions.db"
 ```
 
-👉 In the edge list at the top of the file, the following code draws the
-whole workflow:
+👉🌐 (If you had to restart: **Web Preview → Change port → 8000**.) At the
+**top left** is the app dropdown that says `vibestudio`. It has three more
+apps in it:
+
+| pick this app | shape | the file, if you want to read it |
+|---|---|---|
+| `shape1_line` | ① a line | `shape1_line/agent.py` |
+| `shape2_router` | ② a router | `shape2_router/agent.py` |
+| `shape3_fanout` | ③ a fan-out and a join | `shape3_fanout/agent.py` |
+
+Each is a real workflow under 30 lines — no cloud, nothing to set up.
+Switching apps does not touch your avatar session; it is still there when
+you switch back.
+
+### ① A line
+
+![A line — steps in order](codelab-img/shape-1-line.png)
+
+Steps in the order you wrote them. This app is one file —
+`shape1_line/agent.py`.
+
+👉💻 Open it in **tab 1**, your work terminal — **not tab 2**, which is busy
+running adk web (this command is a normal one-liner; it just opens the
+editor):
+
+```console
+cloudshell edit ~/vibe-studio-lab/shape1_line/agent.py
+```
+
+Both of its nodes fit on one screen:
+
+```python
+def slugify(node_input: str):
+    """Node 1 - writes ONE key into the run's shared state."""
+    slug = "-".join(re.findall(r"[a-z0-9]+", node_input.lower()))[:40]
+    yield Event(state={"slug": slug or "untitled"})
+    yield Event(output={"title": node_input})
+
+
+def name_the_file(node_input, slug: str = "untitled"):
+    """Node 2 - nobody passed `slug` in. ADK looked it up in state."""
+    return Event(output={"file": f"{slug}.mp4", "read_from_state": slug})
+
+
+root_agent = Workflow(
+    name="shape1_line", description="a line: slugify -> name_the_file",
+    edges=[(START, slugify, name_the_file)])
+```
+
+👉🌐 In adk web: switch the app dropdown to **`shape1_line`**, then type
+this in the chat box and press Enter:
+
+```
+Robot does the dishes
+```
+
+![① a line, running](codelab-img/sh1-line.png)
+
+👀 Two panes, two lessons:
+
+- **Left: adk web drew your graph.** Nobody drew that picture — the dev UI reads the same `Workflow` object you just read, so START → `slugify` → `name_the_file` → END *is* the code.
+- **Right: the run, event by event.** `#2 State: slug` is node 1 writing to state. `#4` is node 2's answer, and its `read_from_state` field says where the value came from — because nobody passed it in.
+
+👉🌐 Click the **State** tab (left pane, next to Info):
+
+![the run's shared state](codelab-img/sh1-line-state.png)
+
+👀 That is state in a workflow: **one dict per run, shared by every node.**
+Node 1 wrote `slug`; node 2 declared a parameter with the same name and ADK
+filled it in. Nodes do not call each other and do not have to pass
+everything down the line — they leave things in state and pick things up
+from state.
+
+### ② A router
+
+![A router — the edge carries the label](codelab-img/shape-2-router.png)
+
+One node, two exits — and this is the file you will edit in a minute, so
+open it now.
+
+👉💻 In **tab 1** again (never tab 2 — that terminal is running adk web; if
+you stopped it by accident, start it again with the block at the top of this
+chapter):
+
+```console
+cloudshell edit ~/vibe-studio-lab/shape2_router/agent.py
+```
+
+```python
+BLACKLIST = ["competitor", "hateful", "gore"]
+
+# TODO: YOUR TURN - nothing to do yet; the codelab says when. Then: delete the
+# "# " on the next line, save, and send a title containing that word. (No
+# restart needed - adk web was started with --reload_agents.)
+# BLACKLIST += ["cliffhanger"]
+
+
+def policy_check(node_input: str):
+    """One node, one decision: `route` names the edge to take next."""
+    hits = [w for w in BLACKLIST if w in node_input.lower()]
+    return Event(output={"title": node_input}, state={"policy_hits": hits},
+                 route="BLOCK" if hits else "OK")
+
+
+policy_wf = Workflow(
+    name="shape2_router", description="check -> publish | quarantine",
+    edges=[(START, policy_check),
+           (policy_check, {"OK": publish, "BLOCK": quarantine})])
+```
+
+👀 **Nothing to do about that `TODO: YOUR TURN` yet** — it is the last step
+of this section, and the line under it stays commented for now. First run
+the router exactly as it ships.
+
+👉🌐 Switch the dropdown to **`shape2_router`** and send:
+
+```
+Robot does the dishes
+```
+
+![② the router, taking the OK exit](codelab-img/sh2-ok.png)
+
+👀 `route: OK` on the event chip, then `published: true`. Now the same app,
+the same code, one different word.
+
+👉🌐 Send a second message:
+
+```
+Robot roasts a competitor
+```
+
+![② the router, taking the BLOCK exit](codelab-img/sh2-block.png)
+
+👀 Two paths out of one graph — and the picture keeps up:
+
+- `policy_check` is drawn as a **diamond** and its edges carry their labels. The path this run took is bright; `publish` is greyed out because it never ran.
+- The event chip reads `route: BLOCK`. The node returned a word; the edge dict turned that word into a destination.
+- `blocked_by: ["competitor"]` came out of **state** — the check wrote `policy_hits` on its way past, and `quarantine` declared it as a parameter, exactly like `slug` in shape ①.
+
+**That is the point of a router:** whether something ships is an *edge* you
+can read, not a sentence in a prompt asking a model to be careful.
+
+**Your turn — one line, one keystroke.**
+
+👉✏️ In the editor tab you opened above, find the line marked
+`TODO: YOUR TURN` and **delete the `# ` in front of** `BLACKLIST +=
+["cliffhanger"]`. Save with Ctrl+S. (Swap in any word you like.)
+
+👉🌐 Back in adk web, send:
+
+```
+Robot ends on a cliffhanger
+```
+
+![② the router blocking a word you chose](codelab-img/sh2-yours.png)
+
+*You should see* `route: BLOCK` — for a word **you** chose. Nothing was
+restarted: `adk web` runs with `--reload_agents`, so it re-read your file by
+itself. You just changed what this channel refuses to publish, and the graph
+is the thing that enforces it.
+
+### ③ A fan-out and a join
+
+![A fan-out and a join](codelab-img/shape-3-fanout.png)
+
+Three readers leave START together and a join holds until all three land —
+plus the two things every real graph has. Read-only, this one.
+
+👉💻 In **tab 1**:
+
+```console
+cloudshell edit ~/vibe-studio-lab/shape3_fanout/agent.py
+```
+
+```python
+join_desk = JoinNode(name="join_desk")
+
+# an AGENT is just a node - and {curly keys} are read from the same state
+pitch = Agent(
+    name="pitch", model=config.MODEL,
+    instruction=("Title ONE <=20s video about: {topic}\n"
+                 "trends: {trends}\nmemory: {memory}\nhistory: {history}\n"
+                 "Reply with the title only, at most 60 characters."))
+
+root_agent = Workflow(
+    name="shape3_fanout", description="3 readers -> join -> agent -> router workflow",
+    edges=[(START, read_trends, join_desk),
+           (START, read_memory, join_desk),
+           (START, read_history, join_desk),
+           (join_desk, pitch, policy_wf, announce)])
+```
+
+👉🌐 Switch the dropdown to **`shape3_fanout`** and send **tonight's
+topic** — the thing you would film. For example:
+
+```
+laundry night
+```
+
+![③ a fan-out, a join, an agent node and a nested workflow](codelab-img/sh3-fanout.png)
+
+👀 Read the event column top to bottom — it is this whole chapter in one
+list:
+
+1. `#2 #3 #4` — three `State:` writes, one per reader. They left START together; nobody wrote a thread.
+2. `#8` — the **join** payload: one dict holding all three readers' outputs, handed over once the last one landed.
+3. `#9` — a **model** wrote a title. `pitch` is an `Agent` sitting in the graph like any other node, and its prompt read `{topic} {trends} {memory} {history}` straight out of the same state the readers wrote.
+4. `#10 #11` — `route: OK`, then `published: true`. Those two events belong to **`shape2_router`**: the whole of shape ② is running as **one node** inside this graph.
+5. `#12` — back in the outer graph, `announce` reports what came out.
+
+👀 Your topic is the run's input: `read_trends` drops it into state as
+`topic`, and three nodes later the agent reads `{topic}` when it writes the
+title. One word in; a routed, published title out.
+
+*What you learned:* a line, a router, a fan-out with a join — nodes talking
+through one shared state, an agent used as a node, and a workflow used as a
+node.
+
+### Where these three come back
+
+Everything after this chapter is the same three shapes at full size — the
+next chapter builds the real graph out of them:
+
+| what you just ran | where it comes back |
+|---|---|
+| ③ three readers → `join_desk` | four research nodes → `join_research` — the edges you draw yourself in 🗺️ |
+| `✦ pitch`, an agent as a node | `topic_gate` and `scripter`, the two model nodes in `agent/graph.py` |
+| state written by one node, read by the next | `constraints`, `brief`, `choices` — same trick, feeding the scripter's prompt in 🗺️ |
+| ① a line | the tail of the real graph: join → compose → topic → the form → prefs → scripter → store |
+| ② a router | `agent/post.py`, deciding whether your video actually ships — you watch it fire in 🏁 |
+| a workflow as a node | and why `post` stays a *separate* workflow instead (🏁, Read more) |
+
+One more shape joins them in the next chapter, and it is not in this list: a
+node that **stops and waits for a person**.
+
+### Read more (optional)
+
+<aside class="positive">
+<b>⚠️ NO DEFAULT on the diamond.</b> adk web flags a router that has no
+fallback edge: if <code>policy_check</code> ever returned a word that is
+neither <code>OK</code> nor <code>BLOCK</code>, the run would have nowhere
+to go. One more dict entry fixes it —
+<code>{"OK": publish, "BLOCK": quarantine, DEFAULT_ROUTE: quarantine}</code>
+(import <code>DEFAULT_ROUTE</code> from <code>google.adk.workflow</code>).
+</aside>
+
+<aside class="positive">
+<b>Where a node's arguments come from.</b> A function node binds its
+parameters from the run's state by default — that is
+<code>parameter_binding='state'</code>, and it is why <code>slug</code> and
+<code>policy_hits</code> arrived without anyone passing them. The parameter
+named <code>node_input</code> is the exception: it always holds what the
+previous node returned. Wrap a node as
+<code>node(fn, parameter_binding='node_input')</code> and every parameter is
+read out of that dict instead.
+</aside>
+
+<aside class="positive">
+<b>These three apps are yours to break.</b> They are ordinary folders in the
+repo, nothing else imports them, and no gate checks them. Add a node, change
+an edge, re-run. The pictures above are generated from those same objects by
+<code>scripts/shape_maps.py</code> — change the graph and the picture
+changes.
+</aside>
+
+## 🗺️ Draw the real graph and run a lap
+Duration: 0:08:00
+
+- **What** — draw the real workflow's edges yourself, boot the frontend, and watch your backend run the whole graph while a live map shows where it is.
+- **Why** — the three shapes you just ran, at full size; and a "form" turns out to be nothing but a schema riding an interrupt.
+- **How** — read the graph → draw the edges → boot Vibe Studio → start a lap → watch the map.
+
+![The workflow — agent/graph.py as a picture](codelab-img/d1-workflow.png)
+
+👀 The same three shapes, full size: a fan-out into `join_research`, then a
+single line through the two model nodes (`topic_gate` picks the topic,
+`scripter` writes the shots), with one human pause (`creative_gate`) on the
+way to the stored script. Every arrow is an edge you are about to draw.
+
+**Where does the video get made?** Right at the end, and never inside the
+graph: the script comes out of `scripter`, and then the *desk* from chapter
+⏳ takes the three shots as long-running submits (chapter 🏁). The graph
+pauses for people; it never waits for the world.
+
+### Draw the shape yourself
+
+The graph's nodes all exist. Its **edges do not** — that one list is your
+first edit of the lab.
+
+👉💻 In **tab 1**, open `graph.py` in the Cloud Shell Editor by running:
+
+```console
+cloudshell edit ~/vibe-studio-lab/agent/graph.py
+```
+
+👉✏️ In `graph.py`, find the line marked `TODO: EDGES`, **delete** it and
+**uncomment** the six lines below it (select them, Ctrl+/). The edge list
+becomes:
 
 <!-- code: EDGES -->
 ```python
@@ -407,15 +917,10 @@ whole workflow:
          persist_prefs, scripter, store_script),
 ```
 
-Four edges leaving `START` — that IS the parallelism. No thread pool, no
-gather: a drawing. The last tuple is the single-file line through the human
-gates to the script. The abstraction, in one picture:
-
-![Fan out, then join — parallel is a drawing](codelab-img/d2-join.png)
-
-👀 What the picture shows: edges out of START ARE the fan-out, and the
-join bar fires exactly once — when all four branches have landed. No
-threads, no gather(), just edges.
+You just wrote the parallelism. Four edges leaving `START` — no thread
+pool, no `gather`, no async anything: a drawing. The last tuple is the
+single-file line from the join through the human pause to the stored
+script.
 
 👉 In `creative_gate`, the following code suspends the graph for a
 person:
@@ -435,8 +940,13 @@ Forms are not UI magic; they are schemas riding an interrupt.
 
 ### Boot the frontend
 
-👉💻 Open a **third terminal tab (tab 3)** and start the ONE app server —
-this is the boot command for every 👉🌐 step in the lab:
+The three sandbox shapes ran in the inspector: no frontend, no people. This
+graph has both — so it needs the app. **Nothing gets stopped:** adk web
+stays up on port 8000, and Vibe Studio is a *different* server on 4600.
+
+👉💻 Open a **third terminal tab (tab 3)** — leave tabs 1 and 2 alone — and
+start the ONE app server. This is the boot command behind every 👉🌐 step
+from here on:
 
 ```console
 cd ~/vibe-studio-lab
@@ -444,42 +954,87 @@ source .venv/bin/activate
 uvicorn app.main:app --port 4600
 ```
 
-👉🌐 Click **Web Preview → Change port → 4600**. Nothing to type yet:
+| tab | what runs there | what it is |
+|---|---|---|
+| **tab 1** | nothing, on purpose | your work terminal — every 👉💻 command and `cloudshell edit` |
+| **tab 2** | `adk web` :8000 | the inspector — raw events, the State tab, the shape apps |
+| **tab 3** | `uvicorn` :4600 | Vibe Studio — the product: buttons, the form, the live map |
+
+👉🌐 Click **Web Preview → Change port → 4600**. Nothing to type yet — but
+look at the **top-right corner** before you look at anything else:
+
+![The studio, wearing your face](codelab-img/s2-avatar-payoff.png)
+
+👀 That is the portrait you waited for in the last chapter, and no code
+copied it there: the app simply reads the studio's ledger
+(`app/main.py` → `my_avatar()` → `world/portrait.latest()`). One long-running
+job, delivered by call id, and your channel has an identity that outlives
+every process in this lab.
+
+Now the app itself, still asleep:
 
 ![Vibe Studio asleep — the idle card](codelab-img/s2-idle.png)
 
 ### Start a lap
 
 👉🌐 On the Now card, type exactly this as your hint, then press
-**Start a lap ▸**:
+**Start a lap ▸**. **Watch the map that appears above the card** — that is
+the workflow you just read, live, with your avatar standing on whichever
+node the run is at:
 
 ```
 a tiny robot doing chores
 ```
 
-*You should see, within ~20 seconds:* the creative form — directly. No
-pitch, no conversation first:
+*You should see* the four research nodes light up together, then
+`join_research` and `compose_bundle`, and — within ~20 seconds — your face
+parked on `creative_gate` with a form underneath it. No pitch, no
+conversation first:
 
-![Straight to the form — the topic was decided without asking you](codelab-img/s2-form.png)
+![The live map — research done, and your avatar waiting at creative_gate](codelab-img/s2-flow-form.png)
+
+👀 Two things about that map, because both are the point of this chapter:
+
+- **It is not a drawing.** The nodes and edges are dumped from the live
+  `Workflow` object — `wf.graph.edges`, where every edge carries
+  `from_node.name` and `to_node.name`. The layout table only says *where* to
+  put a node; if the graph ever gains a node the layout forgot, it still
+  renders, listed underneath. The map can be ugly; it cannot lie.
+  (`cloudshell edit ~/vibe-studio-lab/app/flowmap.py`)
+- **It is not a progress bar.** A node turns solid when the node that owns
+  it actually wrote its part of the run — the app reads `runs/state.json`,
+  nothing is on a timer. And two nodes can turn **amber with a YOU badge**:
+  those are the ones that stop and wait for a human. Your avatar stands on
+  whichever node the run is at, so "where am I in this graph" is answered
+  before you read a word.
 
 👀 What just happened: your four research nodes ran in parallel, the join
 fired, and the topic node **decided without you** — a workflow node defaults
 to `single_turn`: one call, no chat. You wrote nothing, and the whole graph
 ran. But it never asked.
 
-Fill the form if you like, or leave it — the next chapter reopens this lap
-properly.
+👉🌐 Fill the form — subject, character, style — and press **Resume ▸**.
+The footer names what that click really is: one `function_response`, the
+same hinge as your avatar. The graph picks up where it suspended.
 
-*What you learned:* you watched a drawn graph run end to end; the one
-thing missing was a conversation — the next chapter 💬 turns it on.
+*What you learned:* you drew a shape, and the shape ran — four nodes at
+once, a join, one pause that waited for a human, and a script at the end.
 
 ### Read more (optional)
 
 <aside class="positive">
-<b>Why there was no conversation.</b> As a workflow node, an agent defaults to
-<code>mode="single_turn"</code>: one model call, no conversation, straight
-to output. That is the right default for pipeline nodes — and exactly wrong
-for a decision you care about. The next chapter 💬 changes one word.
+<b>Why the topic node never asked you anything.</b> An <code>LlmAgent</code>
+has a <code>mode</code>, and there are three:
+<code>chat</code> (a normal conversational agent),
+<code>single_turn</code> (one call, no conversation) and
+<code>task</code> (it converses until it calls its built-in
+<code>finish_task</code>). The default flips with context: a plain agent is
+<code>chat</code>; <b>an agent used as a workflow node is
+<code>single_turn</code></b> — which is why <code>topic_gate</code> decided
+in one call. Set <code>mode="task"</code> on that node and it would pitch,
+listen and revise before releasing a typed Brief. This lab keeps the one
+structured pause (the form) so the shape stays readable; the conversational
+variety is the same hinge underneath.
 </aside>
 
 <aside class="positive">
@@ -496,142 +1051,30 @@ fields; Studio renders them as inputs and a dropdown. Change the schema and
 the form changes — there is no form code anywhere in the frontend.
 </aside>
 
-## 💬 Turn on task mode (one word)
-Duration: 0:04:00
-
-![How task mode works — a conversation with a typed exit](codelab-img/d7-taskmode.png)
-
-👀 What the picture shows — and the full context first. In ADK, every
-LLM agent has a **`mode`**, and there are exactly three
-(`Literal['chat', 'task', 'single_turn']` in `LlmAgent`):
-
-| mode | what it means (ADK's own definition) | where you have SEEN it |
-|---|---|---|
-| `chat` | a standard chat agent — converses turn after turn, the session just continues | the render desk: you typed at it twice in the first chapter ⏳ |
-| `single_turn` | completes its job **without chatting with the user** — one call, straight to output | the topic node last chapter: it decided your topic and never asked |
-| `task` | **chats with the user to accomplish a task** — and exits only by calling its built-in `finish_task`, carrying typed output | the topic node after THIS chapter's one-word edit |
-
-The defaults are the point: as a plain agent, `mode` defaults to `chat`; as
-a **node in a workflow**, it defaults to `single_turn` — which is exactly
-why last chapter's run went straight to the form.
-
-Now the picture: the grey dashed line on top is that `single_turn` default —
-one call, a Brief comes out, you were never asked. The purple loop below is
-`task` mode: the node pitches, you answer in free text, as many rounds as
-you need — and the ONLY way forward is `finish_task` carrying a typed,
-validated Brief. Your one-word edit switches the node from the grey path to
-the purple one. (`chat` mode has no place inside a pipeline — a node that
-chats forever would never let the graph move — which is why the workflow
-only ever chooses between the other two.)
-
-- **What** — your first edit: uncomment `mode="task"`, and the silent topic node becomes a conversation you can steer.
-- **Why** — collaboration is opt-in; the graph still receives a typed, validated Brief either way.
-- **How** — uncomment one word → start a lap → redirect the pitch → accept → fill the form → Resume.
-
-### The edit (your first of three)
-
-👉✏️ Open the workflow in the editor:
-
-```console
-cd ~/vibe-studio-lab
-cloudshell edit agent/graph.py
-```
-
-Find `topic_gate`. One line is commented out:
-
-```
-    # mode="task",   # TODO: TASK_WORD — uncomment: one word turns on task mode (Codelab S2)
-```
-
-**Uncomment it** — delete the `#` and the TODO tail, keeping `mode="task",`.
-That single word turns the node into a *task agent*: it converses with you
-until it calls its built-in `finish_task`, and only then does the graph move
-on.
-
-### Run a lap and steer the pitch
-
-👉🌐 Press **Start a lap ▸** again (same hint or none — nothing else to type
-yet).
-
-*You should see* a **proposal card** — the topic node pitches a topic and
-an angle, and waits. This card is your task node, rendered by the frontend:
-
-![The task gate pitching — and waiting for you](codelab-img/s2-proposal.png)
-
-👉🌐 Type exactly this into the box, then press **↻ Change it**:
-
-```
-make it funnier, starring a tiny robot with a big ego
-```
-
-*You should see* the pitch rewrite around your words. When you like it,
-press **✓ Make this video**.
-
-👉🌐 The creative form appears — the same form as last chapter. Fill
-subject/character/style (the character is yours to invent) and press
-**Resume ▸**.
-
-👀 Now put your two runs side by side — same workflow, ONE word different:
-
-![One word, two behaviors — the same workflow before and after mode="task"](codelab-img/s2-mode-compare.png)
-
-👀 And name the two DIFFERENT human-in-the-loop pauses you have now met,
-because they are this lab's two kinds of asking:
-
-- **The proposal (task mode)** — an open conversation: the node pitches,
-  you push back in free text, it rewrites, and the graph moves only when
-  YOU say yes. For decisions that need judgment.
-- **The form (`RequestInput`)** — a closed, typed question: three fields,
-  a schema, one submit. For inputs that need structure.
-
-Same hinge underneath (both resume by `function_response`), different
-shapes on top. A real product mixes both — and now you know which is which.
-
-*What you learned:* one word turns a silent node into a conversation — and
-the graph still gets a typed Brief. Proposal = open negotiation; form =
-typed collection; both are backend pauses rendered by the frontend.
-
-### Read more (optional)
-
-<aside class="positive">
-<b>finish_task, the built-in exit.</b> A task agent gets one extra tool for
-free: <code>finish_task</code>. It chats as long as it needs, and ONLY when
-it calls that tool — carrying output that validates against the node's
-schema — does the graph move on. Collaboration with a typed ending.
-</aside>
-
-<aside class="positive">
-<b>Every Studio button names its command.</b> The grey caption under each
-button is the backend CLI it runs (<code>agent.run</code>,
-<code>agent.say</code>, <code>agent.answer</code>…). The buttons and the
-terminal are the same backend — the app is never doing anything you
-couldn't type.
-</aside>
-
-<aside class="negative">
-<b>Task mode is not chat mode.</b> The gate negotiates, but the graph never
-sees the chat — it sees only the validated Brief that
-<code>finish_task</code> carried. Conversation stays at the edge; the
-pipeline consumes types.
-</aside>
-
 ## 🏁 Approve, finish, and publish
 Duration: 0:06:00
 
-- **What** — read the two lines that define "all done", then watch the app deliver three render results, repair a failure, rescue a straggler, and publish.
-- **Why** — ADK delivers answers by id; it never *counts* them. When a run is finished is application logic — and it ships written, for you to read.
-- **How** — read the join → Render → Approve → press Finish → Channel.
+- **What** — collect everything this lap is still waiting on — three machine renders and one answer from you — then publish through the router you met in 🔺.
+- **Why** — this is where the lab's two halves meet. ⏳ 📬 taught you that a wait is a *value*, delivered by id. 🔺 🗺️ taught you that a run is a *shape*. Neither of them knows when a lap is **finished** — that part is yours, and it is two lines.
+- **How** — read the join → Render → Approve → press Finish → watch it publish → read the router that allowed it.
+
+👀 Where you are: the graph stopped at the form and handed you a script.
+Since then the **desk** has been holding three machine waits (the ⏳
+mechanism, three at once) and the app has been holding one question for
+**you**. ADK will deliver all four answers by id. It will never tell you
+they add up to "done".
 
 ### The join (read, don't write)
 
-👉📖 Open the join and read the two lines — they ship complete:
+👉💻 In **tab 1**, open `joinlogic.py` in the Cloud Shell Editor by
+running:
 
 ```console
-cd ~/vibe-studio-lab
-cloudshell edit agent/joinlogic.py
+cloudshell edit ~/vibe-studio-lab/agent/joinlogic.py
 ```
 
-👉 In `try_finish()`, the following two lines define "all done":
+👉📖 In `joinlogic.py` — read only, nothing to change — find
+`try_finish()`. These two lines define "all done":
 
 <!-- code: JOIN_CONDITION -->
 ```python
@@ -690,14 +1133,56 @@ published:
 
 ![Published — the panel is watching](codelab-img/s2c-published.png)
 
-👉🌐 Open the **Channel** tab (just browse):
+👉🌐 Open the **Channel** tab and press **play** on your newest card:
 
-![The wall — your video, your thumbnail, and what the panel thought](codelab-img/s2-channel.png)
+![Your video on the wall — a real mp4, playable](codelab-img/s2c-channel-play.png)
 
-*What you learned:* "done" is your business logic — two readable lines; the
-publish happened after content gates, as one idempotent POST.
+👀 That is a genuine file: 1280×720 H.264, six seconds, written to
+`app/static/renders/final_<run>.mp4` by post-production and served by this
+same app. It was cut from the thumbnail your brief generated — the render
+farm's own clips stay prebaked (see the 📬 chapter's note), so this is the
+one artifact in the lab that is really encoded, and it is the one your
+audience "watches".
+
+### The router from chapter 🔺, firing for real
+
+👀 Everything after the join ran through shape ② from the shapes chapter,
+full size — the **router** in `agent/post.py`:
+
+![The router deciding whether your video ships](codelab-img/shape-4-post.png)
+
+`editor` cut the shots together, `policy_check` returned a route (**OK**, so
+`eval_gate` ran; **BLOCK** would have sent it to `quarantine` instead), and
+`eval_gate` returned **PASS**, which is the only edge that reaches
+`publisher`. Two of those four branches never ship anything — and that is
+the point of a deterministic router: *the decision to cause a side effect is
+an edge you can read, not a sentence you hope the model meant.*
+
+👉🔬 Want the receipts? The routes it took are recorded in the run's
+lineage — `runs/state.json` → `lineage.gates` holds the policy result and
+the eval checks it passed, which is exactly what the gate below asserts.
+
+*What you learned:* the two kinds of wait met here — three machine results
+delivered by id, one human answer through the same hinge — and **"all done"
+was two lines you could read**, because ADK counts nothing for you. Then a
+**router** decided that this particular video was allowed to ship, and the
+publish was one idempotent POST. That is Part 1 whole: *a long-running agent
+is a shape that pauses, plus the small amount of your own code that says
+when the pausing is over.*
 
 ### Read more (optional)
+
+<aside class="positive">
+<b>Why <code>post</code> is a second workflow and not a node inside the
+first.</b> In shape ③ you nested one workflow inside another, which is the
+right move when the inner shape is pure compute. This one is not: a resumed
+graph <b>re-runs its nodes</b>, and <code>publisher</code> causes a side
+effect. So the lap's graph ends at the script, the world (renders, your
+approval) happens outside it, and <code>wf_post</code> runs once, after —
+its own <code>Runner</code>, its own session id
+(<code>&lt;run_id&gt;_post</code>). Nest for shape; separate for side
+effects.
+</aside>
 
 <aside class="positive">
 <b>The medic and the deadline, explained.</b> One render fails QC — the
@@ -740,14 +1225,16 @@ delivery as it happens:
 PUBLISHED: {'published': True, 'video_id': 'v_…', 'url': '/watch/v_…'}
 ```
 
-Dev-UI deep dive — both pauses, as raw events (browse only, nothing to type):
-port 8000 Preview → add `&userId=creator` to the URL and reload (adk web
-files YOUR chats under user `user`; the lap's sessions belong to `creator`)
-→ **NEW SESSION ▾** → newest `run_…_wf` session: the `adk_request_input`
-call carrying your form's schema, the user turn holding your answers as a
-`function_response`, and `finish_task` exiting with the typed Brief.
+Dev-UI deep dive — the whole lap as raw events (browse only, nothing to
+type): port 8000 Preview → add `&userId=creator` to the URL and reload (adk
+web files YOUR chats under user `user`; the lap's sessions belong to
+`creator`) → **NEW SESSION ▾** → newest `run_…_wf` session. Top to bottom:
+the typed Brief the topic node returned in one call, the
+`adk_request_input` carrying your form's schema, your answers coming back as
+a `function_response`, `user:prefs` and `choices` landing in state, and the
+script.
 
-![Both pauses in one session — finish_task, adk_request_input, your answer, the script](codelab-img/s2-adkweb-doors.png)
+![One lap in raw events — the Brief, the pause, your answer, the script](codelab-img/s2-adkweb-wf.png)
 
 Then the newest `run_…_desk` session: three `render_submit` calls in one
 turn, results delivered out of order, the medic's retake, the final map.
@@ -782,9 +1269,16 @@ provides. Nothing later depends on it — jump straight to the next chapter 💾
 
 ### Point at the room
 
-👉✏️ Your instructor announces two values, like a meeting code. Open `.env`
-(`cloudshell edit .env`) and fill the platform block — the third line is
-how the room credits you:
+Your instructor announces two values, like a meeting code.
+
+👉💻 In **tab 1**, open `.env` in the Cloud Shell Editor by running:
+
+```console
+cloudshell edit ~/vibe-studio-lab/.env
+```
+
+👉✏️ In `.env`, fill the platform block — the third line is how the room
+credits you:
 
 ```
 VIBETUBE_URL=https://<the-platform-url-your-instructor-gives>
@@ -822,8 +1316,11 @@ python -m agent.premiere
 ![The room can see you — your card, your thumbnail, your name, among everyone's](codelab-img/s2d-vibetube-room.png)
 
 👀 Success = the terminal line `the room can see you now` AND your card in
-the grid. A `403` means the room's upload window is closed — your instructor
-owns those times.
+the grid — with **your avatar on it**. Look at the card's byline: the
+portrait you generated in chapter ⏳ travelled with the upload
+(`premiere.py` attaches it as `avatarFile`), so the room sees the face you
+made, next to everyone else's. A `403` means the room's upload window is
+closed — your instructor owns those times.
 
 *What you learned:* a platform is a contract — changing hosts changes
 nothing about the act.
@@ -831,7 +1328,7 @@ nothing about the act.
 ### Read more (optional)
 
 <aside class="positive">
-<b>premiere.py, opened.</b> <code>cloudshell edit agent/premiere.py</code> —
+<b>premiere.py, opened.</b> <code>cloudshell edit ~/vibe-studio-lab/agent/premiere.py</code> —
 two functions, no new machinery: <code>package()</code> turns your generated
 thumbnail into a real 6-second H.264 with ONE ffmpeg command (swap in real
 Veo shots and this is exactly where the real cut gets stitched), and
@@ -892,48 +1389,41 @@ address —
 
 ### The kill test
 
-👀 You are about to kill every process on purpose — then bring one back and
-find NOTHING lost, not even the wait nobody answered. "The process may die;
-the state survives" is this lab's first law, and reading it ten times is
-worth less than killing it once.
+👀 One law, one keystroke: the process may die; the state does not. Reading
+that ten times is worth less than killing something once.
 
-👉💻 In tab 1 (tab 1 itself survives — it only fires the two pkills):
+👉💻 Go to **tab 3** — the terminal running Vibe Studio — and press
+**Ctrl+C**. The server is gone; the browser tab goes blank on its next
+refresh.
 
-```console
-cd ~/vibe-studio-lab
-pkill -f "agent\." ; pkill -f uvicorn
-```
-
-👉🌐 Studio goes dark — that was tab 3's server dying (adk web in tab 2 is
-untouched; its process matches neither pattern).
-
-👉💻 Go to **tab 3** and re-run its block (press ↑ then Enter, or retype):
+👉💻 That terminal is free now, so use it to look at what outlived the
+server. This folder **is** your durable state:
 
 ```console
-cd ~/vibe-studio-lab
-source .venv/bin/activate
-uvicorn app.main:app --port 4600
-```
-
-👉🌐 Reload the State tab: every row intact — sessions, state, wall, all of
-it.
-
-👉💻 Now look at what actually survived — in tab 1, list the folder that IS
-your durable state:
-
-```console
-cd ~/vibe-studio-lab
 ls runs
 ```
 
 *Our real run:*
 
 ```
-broker.json      final_run_….mp4   sessions.db   ui_busy.json
-delivered.json   memorybank.json   state.json    wall.db
+broker.json        graph_run.log     portraits.json   sessions.db
+delivered.json     memorybank.json   radar.json       state.json
+graph_report.json  premiere_….mp4    ui_busy.json     wall.db
 ```
 
-👀 That's it. The wait from the ⏳ chapter is a row inside `sessions.db`. The
+👉💻 Start the app again, same tab, same venv (press ↑ twice, or retype):
+
+```console
+uvicorn app.main:app --port 4600
+```
+
+👉🌐 Reload the browser and open the **State** tab: every row is exactly as
+you left it — the open call, your prefs, the wall. Nothing was written "on
+the way out", because nothing was ever only in memory.
+
+👀 That's it. Your avatar is in there too — `runs/portraits.json` is the
+ledger that let turn 2 find turn 1's picture after its process had died.
+The wait from the ⏳ chapter is a row inside `sessions.db`. The
 lap's brief and script are keys inside `state.json`. The wall's watch rows
 are in `wall.db`. `memorybank.json` holds one line — the ADDRESS of the
 cloud resource where notes live. Kill any process you like; these files
@@ -954,16 +1444,15 @@ code does not change.
 
 ### One prefix up (your second edit)
 
-👉✏️ Open the workflow in the editor (tab 1 runs this; the editor pane opens
-above the terminal):
+👉💻 In **tab 1**, open `graph.py` in the Cloud Shell Editor by
+running:
 
 ```console
-cd ~/vibe-studio-lab
-cloudshell edit agent/graph.py
+cloudshell edit ~/vibe-studio-lab/agent/graph.py
 ```
 
-Find `persist_prefs`. Delete the TODO line and **uncomment** the line below
-it, so the write becomes:
+👉✏️ In `graph.py`, locate `persist_prefs`, **delete** the line marked
+`TODO: PREFS` and **uncomment** the line below it, so the write becomes:
 
 ```
     yield Event(state={"user:prefs": node_input, "choices": node_input})
@@ -976,9 +1465,8 @@ lifetime longer. (`temp:` goes the other way: never persisted.)
 ### Watch it come back
 
 👉🌐 All buttons this time, no terminal, nothing to type. On the **Now**
-tab: press **Start next lap ▸**, wait for the proposal card, press
-**✓ Make this video** — and the creative form arrives **pre-filled with
-last lap's choices**:
+tab: press **Start next lap ▸**, wait ~20 s while the research fans out —
+and the creative form arrives **pre-filled with last lap's choices**:
 
 ![A new lap, a new topic — and the form already knows your answers](codelab-img/s3-prefilled-form.png)
 
@@ -1068,31 +1556,40 @@ people", three hops for "what else do my finishers finish".
 
 - **The layer** — the world's rows: a BigQuery dataset (`vibestudio`) in YOUR cloud project.
 - **Why this layer** — the audience's watch data is bigger than any process and shared with every tool; it outlives even this VM.
-- **How it connects** — one command (`graph.sh`): create the dataset, load the vendor pack, declare the graph, push YOUR rows in.
+- **How it connects** — one button in the app's **World** tab (it runs `scripts/graph.sh`): create the dataset, load the vendor pack, declare the graph, push YOUR rows in.
 - **How the agent uses it** — the `read_graph` research node queries it every lap; at the end of this chapter you watch the app cite it.
 
-### Why BigQuery, and why a graph
+### Why BigQuery, and do you even need a graph
 
-👀 Two decisions, made consciously. **Why BigQuery for world state?** The
-audience's watch rows are the platform's data, not your agent's: bigger than
-any process, shared with every other tool, alive after `state.json` is
-deleted. That is warehouse-shaped data — the wall's sqlite is just this
-lab's stand-in. **Why a property graph on top?** Because the questions worth
-asking are *paths*: "which creators share MY finishers" is
-viewer→video→creator→video→viewer. In SQL that is a join pyramid; in GQL it
-is one `MATCH` that looks like the question. Same tables, zero copying.
+👀 **Why BigQuery for world state?** The audience's watch rows are the
+platform's data, not your agent's: bigger than any process, shared with
+every other tool, alive after `state.json` is deleted. That is
+warehouse-shaped data — the wall's sqlite is this lab's stand-in for it.
+
+👀 **Do you need a graph database?** No — and notice that you are not
+getting one. `taste_graph` is a *declaration over tables you already have*:
+nothing is copied, nothing new is deployed. Two questions decide whether
+declaring it earns its keep:
+
+| ask this | in this lab |
+|---|---|
+| **How many hops is the question?** | "where do I lose people" is one hop, so it stays plain SQL — the report literally tags it `engine: sql`. "what else do my finishers finish" is three hops (me → video ← viewer → video → topic): that is where one `MATCH` beats a pyramid of joins. |
+| **Does the relationship itself carry data?** | `watched_ms` and `drop_ms` belong to neither the viewer nor the video — they belong to the *watch*. Retention lives on the edge. |
+
+Many-to-many on its own does **not** justify a graph; a join table handles
+that fine. Multi-hop questions over many-to-many edges do.
 
 ### The edge that carries the data (read, don't write)
 
-👉📖 Open the loader and read only — nothing to change:
+👉💻 In **tab 1**, open `load.py` in the Cloud Shell Editor by running:
 
 ```console
-cd ~/vibe-studio-lab
-cloudshell edit bqgraph/load.py
+cloudshell edit ~/vibe-studio-lab/bqgraph/load.py
 ```
 
-👉 In `GRAPH_DDL`, the following edge is the one that carries the watch
-data — read it line by line:
+👉📖 In `load.py` — read only, nothing to change — find `GRAPH_DDL`. The
+four tables are declared as nodes; then comes the edge that carries the
+watch data, and it is three clauses long:
 
 <!-- code: EDGE_TABLE -->
 ```sql
@@ -1100,54 +1597,49 @@ data — read it line by line:
       KEY (viewer_id, video_id)
       SOURCE KEY (viewer_id) REFERENCES viewers (id)
       DESTINATION KEY (video_id) REFERENCES videos (id)
-      LABEL watched PROPERTIES (watched_ms, drop_ms, completed, is_synthetic)
 ```
 
-`SOURCE KEY → DESTINATION KEY` is the whole vocabulary — and **`PROPERTIES`**
-puts `watched_ms` / `drop_ms` on the edge itself: retention lives on the
-relationship. `published` and `about`, right above it, are the same shape.
+| the clause | what it says |
+|---|---|
+| `KEY` | which columns identify one row of this edge |
+| `SOURCE KEY … REFERENCES` | where the arrow starts — a viewer |
+| `DESTINATION KEY … REFERENCES` | where it lands — a video |
 
-### One command, three verbs
+That is the whole vocabulary. The `watched` table already existed; three
+clauses turned it into an arrow. Its other columns (`watched_ms`,
+`drop_ms`, `completed`) come along automatically — that is how retention
+ends up living on the relationship. `published` and `about`, right above it,
+are the same three clauses.
 
-👉💻 In tab 1 — three banners: CONNECT+LOAD (dataset + vendor pack + the
-DDL), STORE (your wall rows enter the world), READ (the readings briefs will
-cite):
+### Build it — one button
 
-```console
-cd ~/vibe-studio-lab
-source .venv/bin/activate
-bash scripts/graph.sh
-```
+👉🌐 In Vibe Studio, open the **World** tab (top left, next to State):
 
-*Our real run (5 laps deep — you'll have 2 videos, ~48 watch edges):*
+![The World tab, before anything is loaded](codelab-img/s4-world-empty.png)
 
-```
-══ 1/3 CONNECT + LOAD ══ (bqgraph/load.py)
-dataset neon-emitter-458622-e3.vibestudio ready
-  creators: 30 rows
-  …
-  taste_graph created ✓
-Radar subscription connected (industry pack + panel in YOUR dataset)
+👉🌐 Press **Build + read the graph ▸**. The grey caption names what the
+button runs — `bash scripts/graph.sh` — and that script is three verbs in
+order: **CONNECT + LOAD** (dataset + vendor pack + the DDL you just read) ·
+**STORE** (your own rows enter the world) · **READ** (the questions).
 
-══ 2/3 STORE ══ (bqgraph/export.py — your rows enter the world)
-  +1 creators
-  +0 viewers
-  +5 videos
-  +5 about
-  +120 watched
-exported 5 video(s), 120 watch edges -> the graph can find you now
+Its output streams into the page while it works, ~40 seconds:
 
-══ 3/3 READ ══ (bqgraph/report.py — the readings briefs will cite)
-graph#1 · where do I lose people?            engine: sql
-   Tiny Robot, Huge Ego: The Napkin Meltdown    avg  48.9% · median drop 4658 ms · dropped 95.8%
-   …
-graph#3 · what else do my finishers finish?  engine: gql
-   agents on camera                             fans 18
-```
+![The graph being built — step 1 solid, output arriving live](codelab-img/s4-world-running.png)
 
-👀 Those are YOUR videos and YOUR panel's real rows — median drop just
-before the 5-second mark. Remember that number: the Memory Bank chapter 🧠
-turns it into a rule.
+👀 Nothing here is animated for show: a dot goes solid when the script
+actually printed that banner, exactly like the workflow map. The app never
+touches BigQuery itself — it runs the same command you could run in tab 1
+and tails the log.
+
+When the third dot lands, the readings are underneath it:
+
+![The three readings, straight out of your project](codelab-img/s4-world-done.png)
+
+👀 Those are YOUR videos and YOUR panel's real rows — and the
+`engine` chip on each reading is the honest part: `graph#1` ran as **sql**
+(one hop needs no graph), `graph#2` and `graph#3` ran as **gql** (two and
+three hops). Remember that median drop just before the 5-second mark: the
+Memory Bank chapter 🧠 turns it into a rule.
 
 ### See it drawn
 
@@ -1164,18 +1656,14 @@ to this dataset. Prove it in the app, click by click (the hint box may stay
 empty; you type nothing):
 
 1. Open Vibe Studio (Web Preview → 4600) → the **Now** tab.
-2. Press **Start next lap ▸** and wait ~20 s. The proposal card appears —
-   the topic node pitching, same as the task-mode chapter 💬:
-
-![Step 2 — the proposal card appears](codelab-img/s2-proposal.png)
-
-3. Press **✓ Make this video** to accept the pitch.
-4. The form appears, already pre-filled from `user:prefs` (the 💾 chapter's
+2. Press **Start next lap ▸** and wait ~20 s while the four research nodes
+   run — watch them light up on the map.
+3. The form appears, already pre-filled from `user:prefs` (the 💾 chapter's
    edit at work) — press **Resume ▸**:
 
 ![Step 4 — the form arrives pre-filled; just press Resume](codelab-img/s3-prefilled-form.png)
 
-5. The **Script ready** card appears. Read its **EVIDENCE** row — a
+4. The **Script ready** card appears. Read its **EVIDENCE** row — a
    `graph#1` chip, highlighted:
 
 ![Step 5 — the EVIDENCE row cites graph#1. No memory chips yet — the Memory Bank chapter wires that.](codelab-img/s4-evidence-graph.png)
@@ -1183,15 +1671,33 @@ empty; you type nothing):
    Your agent just cited, by name, a reading from the graph you built two
    minutes ago. You never asked it anything: the research step queries the
    graph on every lap, automatically.
-6. Finish the lap: press **Render ▸**, wait for the thumbnail card, press
-   **Approve**, then press **Finish ▸** — the Memory Bank chapter 🧠 wants this lap's
-   audience data anyway.
+5. Finish the lap: press **Render ▸**, wait for the thumbnail card, press
+   **Approve**, then press **Finish ▸** — the Memory Bank chapter 🧠 wants
+   this lap's audience data anyway.
 
 *What you learned:* a graph is a declared lens over tables you already
 have; readings carry names — and you watched your agent cite one without
 being asked.
 
 ### Read more (optional)
+
+<aside class="positive">
+<b>The same thing from the terminal.</b> The button is only a wrapper. In
+tab 1: <code>bash scripts/graph.sh</code> prints the same three banners, and
+the three verbs are three files you can run one at a time —
+<code>python -m bqgraph.load</code> · <code>bqgraph.export</code> ·
+<code>bqgraph.report</code>. <code>report</code> also writes
+<code>runs/graph_report.json</code>, which is what the World tab renders.
+</aside>
+
+<aside class="positive">
+<b>What the DDL leaves out on purpose.</b> An edge can also carry
+<code>LABEL x PROPERTIES (a, b, c)</code>. Both are optional and this lab
+omits both: with no <code>PROPERTIES</code> list every column of the table
+is a property (that is why <code>w.completed</code> works in the queries),
+and with no <code>LABEL</code> the alias is the label. Three clauses is the
+smallest true version.
+</aside>
 
 <aside class="positive">
 <b>The client is two lines, and the auth ladder in one breath.</b>
@@ -1250,14 +1756,14 @@ the audience; read at the start of every lap.
 
 ### Connect: create the bank
 
-👉📖 Open the memory module and read only — nothing to change:
+👉💻 In **tab 1**, open `memory.py` in the Cloud Shell Editor by running:
 
 ```console
-cd ~/vibe-studio-lab
-cloudshell edit agent/memory.py
+cloudshell edit ~/vibe-studio-lab/agent/memory.py
 ```
 
-Two spots, one idea each:
+👉📖 In `memory.py` — read only, nothing to change — two spots, one idea
+each:
 
 - `_bank_config()` — the bank's configuration. The nesting is the concept:
   `AgentEngineConfig → context_spec → memory_bank_config → memory_topics`.
@@ -1313,14 +1819,14 @@ Bank** — your engine in the list, with its memory count:
 | you get it by | asking a question you know | similarity — the question finds the note |
 | lands in | a report you read | the agent's context, mid-decision |
 
-👉📖 Open the learner and read only — nothing to change:
+👉💻 In **tab 1**, open `learn.py` in the Cloud Shell Editor by running:
 
 ```console
-cd ~/vibe-studio-lab
-cloudshell edit agent/learn.py
+cloudshell edit ~/vibe-studio-lab/agent/learn.py
 ```
 
-👉 In `distill()`, the code is deliberately plain: the drop-at-5s *reading* becomes a
+👉📖 In `learn.py` — read only, nothing to change — find `distill()`. The
+code is deliberately plain: the drop-at-5s *reading* becomes a
 conclusion-first *rule*; the neighbor overlap becomes one audience sentence.
 Notice what never enters a note: no video ids, no row counts, no job ids.
 👉 In `write_facts()` (same file as before, `agent/memory.py`), the
@@ -1374,15 +1880,15 @@ chapter's lap. `read_memory` still says `facts = []`: notes are being written an
 never read, so nothing the agent decides can change. This edit is the whole
 point of Part 2:
 
-👉✏️ Open the workflow one last time:
+👉💻 In **tab 1**, open `graph.py` in the Cloud Shell Editor one last
+time by running:
 
 ```console
-cd ~/vibe-studio-lab
-cloudshell edit agent/graph.py
+cloudshell edit ~/vibe-studio-lab/agent/graph.py
 ```
 
-In `read_memory`, delete the `facts = []` TODO line and **uncomment** the
-line below it:
+👉✏️ In `graph.py`, locate `read_memory`, **delete** the `facts = []` line
+marked `TODO: RECALL` and **uncomment** the line below it:
 
 ```
         facts = memory.recall()
@@ -1390,12 +1896,12 @@ line below it:
 
 👉🌐 Watch the agent use the bank, click by click (you type nothing):
 
-1. **Now** tab → press **Start next lap ▸** and wait for the proposal card.
-2. Read the pitch itself: *our real run* opened on the outcome at second
-   zero — because the recalled `CHANNEL_CONSTRAINTS` note says
-   conclusion-first. The pitch changed BEFORE you clicked anything.
-3. Press **✓ Make this video**, then read the **Script ready** card's
-   EVIDENCE row:
+1. **Now** tab → press **Start next lap ▸** and wait ~20 s.
+2. Press **Resume ▸** on the pre-filled form, then read the **Script ready**
+   card. *Our real run's script* opened on the outcome at second zero —
+   because the recalled `CHANNEL_CONSTRAINTS` note says conclusion-first.
+   Nothing asked you for that; the graph read it.
+3. Read that card's EVIDENCE row:
 
 ![The loop, closed — a memory# chip in the evidence row](codelab-img/s5-cited-chips.png)
 
@@ -1489,11 +1995,11 @@ one table:
 | chapter | the idea to keep |
 |---|---|
 | 🧰 Setup | frontend · backend · inspector — every server boots right before its first use |
-| ⏳ Start a render | pending is a **value** in the session log, not a thread in memory |
-| 📬 Deliver the result | resume = one `function_response` with the **same call id** — any process can deliver it |
-| 🗺️ Run the workflow | parallelism is **drawn** (edges from START); a form is a schema riding an interrupt |
-| 💬 Task mode | one word makes a node converse — and it still exits **typed**, via `finish_task` |
-| 🏁 Finish and publish | "all done" is **your two lines**; publish is one idempotent POST |
+| ⏳ Make your avatar | pending is a **value** in the session log, not a thread in memory — and a locked prompt keeps every result on-style |
+| 📬 Deliver your avatar | resume = one `function_response` with the **same call id**; multi-turn continuity comes from **files, not memory** |
+| 🔺 Three shapes | every graph is a **line**, a **router** and a **fan-out+join** — nodes talk through one **shared state**, an agent is a node, and a workflow is a node |
+| 🗺️ Run the workflow | parallelism is *drawn*, not threaded; a form is a **schema riding an interrupt** |
+| 🏁 Finish and publish | where both waits land: "all done" is **your two lines** (ADK counts nothing for you), what ships is a **labelled edge**, and publish is one idempotent POST |
 | 📺 Shared platform | a platform is a **contract** — changing hosts changes nothing about the act |
 | 💾 Session files | lifetime = **where you store it**; the `user:` prefix moves a key one rung up |
 | 🌍 The world graph | a graph is a **declared lens** over tables; readings carry names so briefs can cite them |

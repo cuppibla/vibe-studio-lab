@@ -1,7 +1,7 @@
 """`python -m agent.premiere` - put your published video on the ROOM's platform.
 
 The local Wall is your analytics engine; the room's VibeTube is where
-everyone's videos meet. Same lesson as section 2c, different host: publishing
+everyone's videos meet. Same lesson as chapter 🏁, different host: publishing
 is ONE multipart POST to a contract - no SDK, no session, just HTTP.
 
 Needs (from your instructor, in .env):
@@ -66,6 +66,14 @@ def main():
     thumb_file = config.ROOT / "app" / thumb.lstrip("/") if thumb else None
     if thumb_file and thumb_file.exists():
         files["thumbnailFile"] = (thumb_file.name, thumb_file.open("rb"), "image/png")
+
+    # YOUR avatar from chapter 2 rides along - the room sees the face you made
+    from world import portrait
+    mine = portrait.latest()
+    av = config.ROOT / "app" / mine["url"].lstrip("/") if mine else None
+    if av and av.exists():
+        files["avatarFile"] = (av.name, av.open("rb"), "image/png")
+        print(f"  attaching your avatar: {mine['url']}")
 
     print(f"── POST {URL}/api/events/{EVENT}/videos ──")
     r = httpx.post(

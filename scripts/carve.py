@@ -12,7 +12,9 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from checks.holes import HOLES  # noqa: E402
 
-SHIP_HOLES = ["TASK_WORD", "PREFS", "RECALL"]
+# the three spots the student fills: draw the parallelism, widen a
+# lifetime, close the loop
+SHIP_HOLES = ["EDGES", "PREFS", "RECALL"]
 
 
 def main():
