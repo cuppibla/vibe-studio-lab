@@ -61,9 +61,9 @@ else:
     except ImportError:
         tick("Memory Bank SDK", False, "uv sync")
 
-# the five stage apps the workflow act grows through - adk web lists them
-for app in ("stage0_prompt", "stage1_fanout", "stage2_pause",
-            "stage3_script", "stage4_gates"):
+# the four stage apps the workflow act grows through - adk web lists them
+for app in ("stage0_prompt", "stage1_fanout", "stage2_direction",
+            "stage3_router"):
     try:
         mod = __import__(f"{app}.agent", fromlist=["root_agent"])
         n = getattr(getattr(mod.root_agent, "graph", None), "edges", None)

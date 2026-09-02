@@ -23,35 +23,33 @@ HOLES = {
         id=call_id, name=name, response=response))
     return await _drive(node, session_id, [part], user_id)'''),
 
-    # S2 · workflow — the shape is the parallelism
+    # Act II · workflow — the base graph, drawn by you
     "EDGES": ("agent/graph.py",
-              '''        # TODO: EDGES — delete me, uncomment the shape below (Codelab 🗺️, the EDGES hole)
+              '''        # TODO: EDGES — delete me, uncomment the base graph below (Codelab 🗺️, the EDGES hole)
         # (START, scan_trends, join_research),
-        # (START, read_memory, join_research),
         # (START, read_backcatalog, join_research),
-        # (START, read_graph, join_research),
-        # (join_research, compose_bundle, topic_gate, creative_gate,
-        #  persist_prefs, scripter, store_script),''',
+        # (join_research, compose_bundle, propose_directions, direction_gate,
+        #  persist_direction, policy_check),
+        # (policy_check, {"OK": scripter, "BLOCK": quarantine}),
+        # (scripter, store_script),''',
               '''        (START, scan_trends, join_research),
-        (START, read_memory, join_research),
         (START, read_backcatalog, join_research),
-        (START, read_graph, join_research),
-        (join_research, compose_bundle, topic_gate, creative_gate,
-         persist_prefs, scripter, store_script),'''),
+        (join_research, compose_bundle, propose_directions, direction_gate,
+         persist_direction, policy_check),
+        (policy_check, {"OK": scripter, "BLOCK": quarantine}),
+        (scripter, store_script),'''),
 
-    # S2 · the graph asks a person, one structured form
-    "CREATIVE_GATE": ("agent/graph.py",
-                      '''    raise NotImplementedError("TODO: CREATIVE_GATE — delete me, uncomment below (Codelab 🗺️)")
-    # yield RequestInput(
-    #     message="Creative brief - pick the subject, character, and style.",
-    #     response_schema=CREATIVE_SCHEMA,
-    #     payload={"topic": node_input.topic, "angle": node_input.angle,
-    #              "defaults": prefs})''',
-                      '''    yield RequestInput(
-        message="Creative brief - pick the subject, character, and style.",
-        response_schema=CREATIVE_SCHEMA,
-        payload={"topic": node_input.topic, "angle": node_input.angle,
-                 "defaults": prefs})'''),
+    # Act III · the audience graph joins the fan-out — one edge
+    "GRAPH_EDGE": ("agent/graph.py",
+                   '''        # TODO: GRAPH_EDGE — delete me, uncomment below: the audience graph joins the fan-out (Codelab 🌍)
+        # (START, read_graph, join_research),''',
+                   '''        (START, read_graph, join_research),'''),
+
+    # Act III · the memory bank joins the fan-out — one edge
+    "MEMORY_EDGE": ("agent/graph.py",
+                    '''        # TODO: MEMORY_EDGE — delete me, uncomment below: the channel's memory joins the fan-out (Codelab 🧠)
+        # (START, read_memory, join_research),''',
+                    '''        (START, read_memory, join_research),'''),
 
     # S2 · the join is yours
     "JOIN_CONDITION": ("agent/joinlogic.py",
@@ -60,12 +58,6 @@ HOLES = {
     # human_ok = any(a["kind"] == "thumb" for a in st["lineage"]["approvals"])''',
                        '''    still = drive.run(drive.pending(desk_sid(st)))
     human_ok = any(a["kind"] == "thumb" for a in st["lineage"]["approvals"])'''),
-
-    # S3 · prefs are state — one word, one lifetime
-    "PREFS": ("agent/graph.py",
-              '''    yield Event(state={"choices": node_input})  # TODO: PREFS — delete me, uncomment below (Codelab 💾)
-    # yield Event(state={"user:prefs": node_input, "choices": node_input})''',
-              '    yield Event(state={"user:prefs": node_input, "choices": node_input})'),
 
     # S4 · a graph is a lens over tables — one edge is the vocabulary
     "EDGE_TABLE": ("bqgraph/load.py",
@@ -93,13 +85,8 @@ HOLES = {
             direct_memories=[{"fact": f} for f in facts]),
         scope=SCOPE, config={"wait_for_completion": True})'''),
 
-    # S5 · the READ path — one line closes the loop
-    "RECALL": ("agent/graph.py",
-               '''        facts = []  # TODO: RECALL — delete me, uncomment below (Codelab 🧠)
-        # facts = memory.recall()''',
-               '        facts = memory.recall()'),
 }
 
 # codelab section aliases for rescue
-SECTIONS = {"s1": ["RESUME"], "s2": ["EDGES", "CREATIVE_GATE", "JOIN_CONDITION"],
-            "s3": ["PREFS"], "s4": ["EDGE_TABLE"], "s5": ["GENERATE", "RECALL"]}
+SECTIONS = {"s1": ["RESUME"], "s2": ["EDGES", "JOIN_CONDITION"],
+            "s4": ["EDGE_TABLE", "GRAPH_EDGE"], "s5": ["GENERATE", "MEMORY_EDGE"]}

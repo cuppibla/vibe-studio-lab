@@ -18,34 +18,38 @@ from agent import state as _state
 
 # where each node sits (grid units) - layout only, never structure
 LAYOUT = {
-    "__START__":        (0, 1.5),
-    "scan_trends":      (1, 0),
-    "read_memory":      (1, 1),
-    "read_backcatalog": (1, 2),
-    "read_graph":       (1, 3),
-    "join_research":    (2, 1.5),
-    "compose_bundle":   (3, 1.5),
-    "topic_gate":       (4, 1.5),
+    "__START__":          (0, 1.5),
+    "scan_trends":        (1, 0.4),
+    "read_backcatalog":   (1, 1.4),
+    "read_graph":         (1, 2.4),      # joins in the BigQuery chapter
+    "read_memory":        (1, 3.4),      # joins in the Memory Bank chapter
+    "join_research":      (2, 1.5),
+    "compose_bundle":     (3, 1.5),
+    "propose_directions": (4, 1.5),
     # the tail wraps onto a second row so the map stays readable
-    "creative_gate":    (1, 4.6),
-    "persist_prefs":    (2, 4.6),
-    "scripter":         (3, 4.6),
-    "store_script":     (4, 4.6),
+    "direction_gate":     (0, 4.8),
+    "persist_direction":  (1, 4.8),
+    "policy_check":       (2, 4.8),
+    "quarantine":         (2, 5.9),
+    "scripter":           (3, 4.8),
+    "store_script":       (4, 4.8),
 }
 SUB = {
     "scan_trends": "what the room watches",
-    "read_memory": "what you learned",
     "read_backcatalog": "your own wall",
     "read_graph": "the audience graph",
-    "join_research": "waits for all 4",
+    "read_memory": "what the channel learned",
+    "join_research": "waits for every feed",
     "compose_bundle": "one cited bundle",
-    "topic_gate": "picks the topic",
-    "creative_gate": "your form",
-    "persist_prefs": "user:prefs",
-    "scripter": "3 shots, typed",
+    "propose_directions": "3 candidates, into state",
+    "direction_gate": "you pick — the form",
+    "persist_direction": "user:prefs",
+    "policy_check": "reads policy_words.txt",
+    "quarantine": "the polite stop",
+    "scripter": "3 shots, quietly",
     "store_script": "the ledger",
 }
-HUMAN = {"creative_gate"}          # the node that pauses FOR you
+HUMAN = {"direction_gate"}         # the node that pauses FOR you
 
 CELL_W, CELL_H, PAD = 168, 76, 26
 BOX_W, BOX_H = 146, 50
@@ -59,20 +63,25 @@ def graph_edges() -> list[tuple[str, str]]:
         from agent.graph import wf
         return [(e.from_node.name, e.to_node.name) for e in wf.graph.edges]
     except Exception:
-        order = list(LAYOUT)
-        return [("__START__", n) for n in order[1:5]] + [
-            (n, "join_research") for n in order[1:5]] + [
-            ("join_research", "compose_bundle"), ("compose_bundle", "topic_gate"),
-            ("topic_gate", "creative_gate"), ("creative_gate", "persist_prefs"),
-            ("persist_prefs", "scripter"), ("scripter", "store_script")]
+        readers = ["scan_trends", "read_backcatalog"]
+        return [("__START__", n) for n in readers] + [
+            (n, "join_research") for n in readers] + [
+            ("join_research", "compose_bundle"),
+            ("compose_bundle", "propose_directions"),
+            ("propose_directions", "direction_gate"),
+            ("direction_gate", "persist_direction"),
+            ("persist_direction", "policy_check"),
+            ("policy_check", "scripter"), ("policy_check", "quarantine"),
+            ("scripter", "store_script")]
 
 
 def node_states(st: dict, phase: str) -> dict[str, str]:
     """done · now · you · idle - each one read from what the run actually wrote."""
-    past = phase in ("proposal", "form", "scripted", "published")
-    researched = bool(st.get("graph_report") or st.get("memory_facts") or past)
-    bundled = bool(st.get("brief")) or past
-    chose = bool(st.get("choices"))
+    past = phase in ("form", "blocked", "scripted", "published")
+    researched = bool(st.get("graph_report") or st.get("candidates") or past)
+    proposed = bool(st.get("candidates")) or past
+    chose = bool(st.get("direction"))
+    blocked = bool(st.get("blocked"))
     scripted = bool(st.get("script"))
     s = {}
     for n in LAYOUT:
@@ -81,17 +90,21 @@ def node_states(st: dict, phase: str) -> dict[str, str]:
         elif n in ("scan_trends", "read_memory", "read_backcatalog", "read_graph"):
             s[n] = "done" if researched else "now"
         elif n in ("join_research", "compose_bundle"):
-            s[n] = "done" if bundled else ("now" if researched else "idle")
-        elif n == "topic_gate":
-            passed = chose or scripted or phase in ("form", "scripted", "published")
-            s[n] = "done" if passed else ("now" if bundled else "idle")
-        elif n == "creative_gate":
-            passed = chose or scripted or phase in ("scripted", "published")
+            s[n] = "done" if proposed else ("now" if researched else "idle")
+        elif n == "propose_directions":
+            s[n] = "done" if proposed and phase != "form" or chose else \
+                   ("done" if phase == "form" else ("now" if researched else "idle"))
+        elif n == "direction_gate":
+            passed = chose or scripted or blocked or phase in ("scripted", "published")
             s[n] = "done" if passed else ("you" if phase == "form" else "idle")
-        elif n == "persist_prefs":
+        elif n == "persist_direction":
             s[n] = "done" if chose else "idle"
+        elif n == "policy_check":
+            s[n] = "done" if (scripted or blocked) else ("now" if chose else "idle")
+        elif n == "quarantine":
+            s[n] = "done" if blocked else "idle"
         else:
-            s[n] = "done" if scripted else ("now" if chose else "idle")
+            s[n] = "done" if scripted else ("now" if (chose and not blocked) else "idle")
     return s
 
 

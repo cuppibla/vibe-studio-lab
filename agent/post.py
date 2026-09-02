@@ -1,7 +1,8 @@
-"""Post-production workflow (pure compute + dict-edge gates).
-editor -> policy_check(OK/BLOCK) -> eval_gate(PASS/FAIL) -> publisher.
-Gates are checker EVALS - and they run BEFORE the side effect."""
-import pathlib
+"""Post-production workflow - the publish BACKSTOP (pure compute + one gate).
+editor -> eval_gate(PASS/FAIL) -> publisher.
+The POLICY gate already ran inside the lap graph, before any money was
+spent; this eval guards what the (quiet) script stage introduced - invented
+evidence, an over-long title - right BEFORE the side effect."""
 import time
 
 from google.adk import Event, Runner, Workflow
@@ -9,17 +10,6 @@ from google.adk.workflow import START
 from google.genai import types as gtypes
 
 from . import config, drive, state
-
-# Policy is DATA, not code: the words live in policy_words.txt beside this
-# file, and policy_check reads them at DECISION time - edit the file, and
-# the very next run enforces it. No restart, no redeploy.
-POLICY_FILE = pathlib.Path(__file__).parent / "policy_words.txt"
-
-
-def policy_words() -> list[str]:
-    return [w.strip().lower() for w in POLICY_FILE.read_text().splitlines()
-            if w.strip() and not w.strip().startswith("#")]
-
 
 def editor(node_input):
     """Cut the shots together. The farm's clips are prebaked receipts, so the
@@ -33,15 +23,6 @@ def editor(node_input):
         final_ref = f"runs/final_{st['run_id']}.txt"
         (config.ROOT / final_ref).write_text("PREBAKED CUT\n" + "\n".join(urls))
     return Event(output={"final_ref": final_ref, "n_shots": len(urls)})
-
-
-def policy_check(node_input):
-    st = state.load()
-    text = (st["script"]["title"] + " " + st["script"]["description"]).lower()
-    bad = [w for w in policy_words() if w in text]
-    st["lineage"]["gates"]["policy"] = {"ok": not bad, "hits": bad}
-    state.save(st)
-    return Event(output=node_input, route="BLOCK" if bad else "OK")
 
 
 def eval_gate(node_input):
@@ -61,10 +42,6 @@ def eval_gate(node_input):
     lin["gates"]["eval"] = {"checks": checks, "invented": invented}
     state.save(st)
     return Event(output=node_input, route="PASS" if all(checks.values()) else "FAIL")
-
-
-def quarantine(node_input):
-    return Event(output={"published": False, "why": "policy BLOCK"})
 
 
 def rejected(node_input):
@@ -88,9 +65,8 @@ def publisher(node_input):
 
 
 wf_post = Workflow(
-    name="post", description="editor -> gates -> publisher",
-    edges=[(START, editor, policy_check),
-           (policy_check, {"OK": eval_gate, "BLOCK": quarantine}),
+    name="post", description="editor -> eval backstop -> publisher",
+    edges=[(START, editor, eval_gate),
            (eval_gate, {"PASS": publisher, "FAIL": rejected})])
 
 

@@ -12,9 +12,9 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from checks.holes import HOLES  # noqa: E402
 
-# the three spots the student fills: draw the parallelism, widen a
-# lifetime, close the loop
-SHIP_HOLES = ["EDGES", "PREFS", "RECALL"]
+# the three spots the student fills: draw the base graph, then wire in a
+# new research feed per act - the graph literally grows
+SHIP_HOLES = ["EDGES", "GRAPH_EDGE", "MEMORY_EDGE"]
 
 
 def main():

@@ -16,7 +16,7 @@ def start_lap(hint: str) -> str:
     if not wf.edges:
         raise NotImplementedError(
             "TODO: EDGES — the graph has no edges yet. Open agent/graph.py, "
-            "delete the TODO line and uncomment the six lines under it "
+            "delete the TODO line and uncomment the base edge list under it "
             "(Codelab: 'the EDGES hole').")
     st = state.load()
     creds = st.get("creds") or platform.join("annie")
@@ -34,7 +34,7 @@ def start_lap(hint: str) -> str:
     if prefs:
         state.update(prefs=prefs)
         print(f"  prefs found (user:prefs): {prefs}")
-    return f"Plan tonight's video. Creator hint: {hint or '(none)'}"
+    return f"Plan tonight's video. Creator idea: {hint or '(none — you choose)'}"
 
 
 def latest_proposal() -> str:
@@ -73,6 +73,8 @@ def where() -> dict:
         return {"phase": "idle"}
     if st.get("published"):
         return {"phase": "published", "video": st["published"]}
+    if st.get("blocked") and not st.get("script"):
+        return {"phase": "blocked", **st["blocked"]}
     if st.get("script"):
         return {"phase": "scripted", "title": st["script"]["title"]}
     pend = drive.run(drive.pending(wf_sid()))
@@ -90,13 +92,15 @@ def print_where() -> None:
     if p == "form":
         pay = w.get("payload") or {}
         print(f"⏸  FORM — {w['message']}")
-        print(f"   topic: {pay.get('topic')}")
-        if pay.get("defaults"):
-            print(f"   defaults (user:prefs): {json.dumps(pay['defaults'])}")
-        print('   answer: python -m agent.answer --subject "…" --character "…" --style low-poly')
+        for i, c in enumerate(pay.get("candidates") or [], 1):
+            print(f"   {i} · {c.get('title')}")
+        print('   answer: python -m agent.answer --pick 1   (or --pick custom --custom "…")')
     elif p == "proposal":
         print("⏸  PROPOSAL — the topic gate is chatting with you.")
         print('   push back or accept: python -m agent.say "…"')
+    elif p == "blocked":
+        print(f"⛔ blocked by your own policy ({', '.join(w.get('hits', []))}) — "
+              "start a new lap with a different direction")
     elif p == "scripted":
         print(f"✓ script ready: {w['title']!r} — next: python -m agent.render")
     elif p == "published":

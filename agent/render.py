@@ -4,7 +4,7 @@ result delivery. Then everything is pending at once - see `python -m agent.statu
 import json
 import time
 
-from world import thumbgen
+from world import thumbstudio
 
 from . import drive, state
 from .desk import render_desk, thumb_desk
@@ -27,8 +27,8 @@ def main():
     st["render_started_at"] = time.time()
     state.save(st)
 
-    print("── thumbnail: generating from YOUR brief ──")
-    thumb = thumbgen.generate(run_id, st["script"]["title"], st.get("choices", {}))
+    print("── thumbnail: generating from YOUR direction ──")
+    thumb = thumbstudio.generate(run_id, st["script"]["title"], st.get("direction", ""))
     state.update(thumb=thumb)
     print(f"  thumb: {thumb['ref']} · generated={thumb['generated']}")
 

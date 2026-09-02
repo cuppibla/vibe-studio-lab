@@ -70,13 +70,6 @@ def publish_to_room(st) -> dict:
             files["thumbnailFile"] = (thumb_file.name, thumb_file.open("rb"),
                                       "image/png")
 
-        # YOUR avatar rides along - the room sees the face you made
-        from world import portrait
-        mine = portrait.latest()
-        av = config.ROOT / "app" / mine["url"].lstrip("/") if mine else None
-        if av and av.exists():
-            files["avatarFile"] = (av.name, av.open("rb"), "image/png")
-
         r = httpx.post(
             f"{url}/api/events/{event}/videos",
             data={"title": st["script"]["title"],

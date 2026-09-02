@@ -221,6 +221,10 @@ body{background:var(--bg);color:var(--ink);font-family:-apple-system,'SF Pro Tex
 .h0{font-size:25px;font-weight:700}.h0s{color:var(--sub);font-size:13.5px;margin-top:6px}
 .ql{font-size:11px;letter-spacing:.16em;color:var(--sub);font-weight:600;margin:22px 0 9px}
 .chips{display:flex;gap:9px;flex-wrap:wrap}
+.drow{display:flex;gap:12px;align-items:flex-start;padding:11px 12px;border:1.6px solid var(--line);border-radius:12px;margin-top:9px;cursor:pointer}
+.drow input[type=radio]{margin-top:5px;accent-color:var(--amber)}
+.drow b{font-size:15.5px}
+.drow input[type=text]{margin-top:6px;width:100%}
 .chip{font-size:14px;padding:8px 15px;border-radius:22px;border:1.5px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
 .chip.on{border-color:var(--amber);background:rgba(233,162,59,.09);font-weight:600}
 input[type=text]{border:1.5px solid var(--line);border-radius:13px;padding:11px 15px;font-size:14.5px;width:100%;max-width:430px;background:#fff}
@@ -271,15 +275,19 @@ select{border:1.5px solid var(--line);border-radius:13px;padding:10px 13px;font-
 """
 
 
-def my_avatar() -> str:
-    """The portrait YOU asked for in chapter 2 - the app just reads the studio's
-    ledger. Falls back to the stock robot until one exists."""
+MASCOT = "/static/art/robot-avatar.png"   # the studio's mascot walks the map
+
+
+def suggest_topic() -> str:
+    """PERSISTENT STATE, visible: user:prefs remembers your last direction
+    across every session, so the next visit can open with a suggestion."""
     try:
-        from world import portrait
-        got = portrait.latest()
-        return got["url"] if got else "/static/art/robot-avatar.png"
+        prefs = drive.run(drive.ensure_user_state("_ui_probe")).get("user:prefs") or {}
+        last = prefs.get("last_direction", "")
+        return f"something like: {last}" if last else ""
     except Exception:
-        return "/static/art/robot-avatar.png"
+        return ""
+
 
 
 def page(tab: str, body: str, refresh: bool = True) -> str:
@@ -291,26 +299,8 @@ def page(tab: str, body: str, refresh: bool = True) -> str:
 <title>Vibe Studio</title><style>{CSS}</style></head><body>
 <div class="top"><img class="logo" src="/static/art/gem-3.png"><span class="brand">Vibe Studio</span>
 <div class="tabs">{tabs}</div>
-<span class="me"><img src="{my_avatar()}"></span></div>
+</div>
 <div class="wrap">{body}</div></body></html>"""
-
-
-def parse_pitch(text: str) -> tuple[str, str]:
-    """The gate chats in prose; the card wants a headline. Tolerant parse."""
-    text = (text or "thinking…").replace("**", "")
-    topic, angle = "", []
-    for line in text.splitlines():
-        s = line.strip()
-        low = s.lower()
-        if low.startswith("topic:"):
-            topic = s.split(":", 1)[1].strip()
-        elif low.startswith("angle:"):
-            angle.append(s.split(":", 1)[1].strip())
-        elif s and not topic:
-            topic = s
-        elif s:
-            angle.append(s)
-    return topic[:120] or "thinking…", " ".join(angle)[:260]
 
 
 def now_body() -> str:
@@ -327,18 +317,24 @@ def now_body() -> str:
         # the live map of the workflow (nodes+edges dumped from the real
         # Workflow object), above every card of a running lap
         from app import flowmap
-        busy_html += flowmap.render(st, lap.where().get("phase", ""), my_avatar())
+        busy_html += flowmap.render(st, lap.where().get("phase", ""), MASCOT)
 
     if not st.get("run_id"):
+        chip = ""
+        sug = suggest_topic()
+        if sug:
+            chip = (f'<div class="h0s" style="margin-bottom:8px">like last time? '
+                    f'<a href="#" onclick="document.querySelector(\'[name=hint]\').value='
+                    f'\'{sug}\';return false" class="mchip">{sug}</a></div>')
         return busy_html + f"""
 <div class="hero"><img src="/static/art/hero-studio.png"></div>
 <div class="card" style="margin-top:22px">
 <div class="h0">Everything is asleep. The state is safe.</div>
-<div class="h0s">Start a lap — the agent researches, then comes to you twice.</div>
-<form method="post" action="/ui/run"><div class="foot">
-<input type="text" name="hint" placeholder='your idea — e.g. "a tiny robot doing chores"'>
+<div class="h0s">Drop an idea — or drop nothing, and the channel finds its own.</div>
+{chip}<form method="post" action="/ui/run"><div class="foot">
+<input type="text" name="hint" placeholder='an idea — or leave it empty'>
 <button class="go">Start a lap ▸</button></div></form>
-<div class="h0s" style="margin-top:14px">you get three touches: this hint · its pitch · your creative form</div></div>"""
+<div class="h0s" style="margin-top:14px">you get three touches: this idea · picking a direction · approving the thumbnail</div></div>"""
 
     if st.get("published"):
         v = st["published"]
@@ -370,67 +366,69 @@ def now_body() -> str:
 <div class="card"><div class="h0">Ship this thumbnail?</div>
 <div class="h0s">{gen} · renders keep cooking while you decide</div>
 <img class="thumbprev" src="{thumb}">
-<form method="post" action="/ui/approve"><div class="foot">
-<span style="font-size:12.5px;color:var(--sub)">approving answers one pending call</span>
-<button class="go">Approve ▸</button></div></form></div>"""
+<div class="foot">
+<form method="post" action="/ui/rethumb"><button class="ghost">↻ Regenerate</button></form>
+<form method="post" action="/ui/approve" style="margin-left:auto"><div style="text-align:right">
+<button class="go">Approve ▸</button><br>
+<span style="font-size:12.5px;color:var(--sub)">approve, and the lap finishes itself</span></div></form>
+</div></div>"""
 
     if st.get("shots"):
         done = sum(1 for s in st["shots"] if s.get("status") in ("done", "fallback"))
+        fallback = "" if b else """
+<form method="post" action="/ui/finish"><div class="foot">
+<span style="font-size:12.5px;color:var(--sub)">worker idle? run it again</span>
+<button class="ghost">Finish ▸</button></div></form>"""
         return busy_html + f"""
 <div class="card"><div class="h0">Rendering {done}/{len(st['shots'])}.</div>
-<div class="h0s">every wait is a row — nothing moves until a result is delivered</div>
-<form method="post" action="/ui/finish"><div class="foot">
-<span style="font-size:12.5px;color:var(--sub)">python -m agent.finish, as a button</span>
-<button class="go">Finish ▸</button></div></form></div>"""
+<div class="h0s">every wait is a row — the worker delivers each one by id, then this lap finishes itself</div>{fallback}</div>"""
 
     if st.get("script"):
         ev_chips = ""
         for e in (st.get("brief") or {}).get("evidence", []):
-            src = e.get("source", "")
-            cls = "mm" if src.startswith("memory#") else ("mg" if src.startswith("graph#") else "")
-            ev_chips += f'<span class="mchip {cls}">{src}</span>'
-        return busy_html + f"""
-<div class="card"><div class="h0">Script ready.</div>
-<div class="h0s">“{st['script']['title']}” · 3 shots</div>
-<div class="made"><span class="k">EVIDENCE</span>{ev_chips or '<span class="mchip">none</span>'}</div>
+            s_ = e.get("source", "")
+            cls = "mm" if s_.startswith("memory#") else ("mg" if s_.startswith("graph#") else "")
+            ev_chips += f'<span class="mchip {cls}">{s_}</span>'
+        fallback = "" if b else """
 <form method="post" action="/ui/render"><div class="foot">
-<span style="font-size:12.5px;color:var(--sub)">submits 3 renders + generates YOUR thumbnail</span>
-<button class="go">Render ▸</button></div></form></div>"""
+<span style="font-size:12.5px;color:var(--sub)">renders idle? start them again</span>
+<button class="ghost">Render ▸</button></div></form>"""
+        return busy_html + f"""
+<div class="card"><div class="h0">Direction cleared the policy gate.</div>
+<div class="h0s">“{st['script']['title']}” — scripted quietly; renders start themselves</div>
+<div class="made"><span class="k">EVIDENCE</span>{ev_chips or '<span class="mchip">none</span>'}</div>{fallback}</div>"""
 
     w = lap.where()
     if w["phase"] == "form":
         pay = w.get("payload") or {}
-        d = pay.get("defaults") or {}
-        topic = pay.get("topic", "")
-        chips = "".join(
-            f'<label class="chip"><input type="radio" name="style" value="{s}" '
-            f'{"checked" if d.get("style") == s or (not d and s == "low-poly") else ""} '
-            f'style="display:none">{s}</label>'
-            for s in ("low-poly", "paper", "bright"))
+        cands = pay.get("candidates") or []
+        idea = pay.get("idea", "")
+        rows = ""
+        for i, c in enumerate(cands, 1):
+            ev = "".join(f'<span class="mchip {"mm" if e.get("source","").startswith("memory#") else ("mg" if e.get("source","").startswith("graph#") else "")}">{e.get("source","")}</span>'
+                         for e in (c.get("evidence") or []))
+            rows += f'''
+<label class="drow"><input type="radio" name="pick" value="{i}" {"checked" if i == 1 else ""}>
+<div><b>{c.get("title","")}</b><div class="h0s">{c.get("angle","")} {ev}</div></div></label>'''
         return busy_html + f"""
-<div class="card"><div class="h0">Your agent needs you.</div>
-<div class="h0s">topic locked: {topic}</div>
+<div class="card"><div class="h0">Pick tonight's direction.</div>
+<div class="h0s">researched from {"your idea: " + idea if idea else "the trends"} · the run is SUSPENDED on this form</div>
 <form method="post" action="/ui/answer">
-<div class="ql">SUBJECT</div><input type="text" name="subject" value="{d.get('subject', topic)}">
-<div class="ql">CHARACTER</div><input type="text" name="character" value="{d.get('character', '')}" placeholder="anything you like">
-<div class="ql">STYLE</div><div class="chips">
-<select name="style">{"".join(f'<option {"selected" if d.get("style")==s else ""}>{s}</option>' for s in ("low-poly","paper","bright"))}</select></div>
-<div class="foot"><span style="font-size:12.5px;color:var(--sub)">this form is the RequestInput schema</span>
-<button class="go">Resume ▸</button></div></form></div>"""
+{rows}
+<label class="drow"><input type="radio" name="pick" value="custom">
+<div><b>write my own</b><input type="text" name="custom" placeholder="your direction, one line"></div></label>
+<div class="foot"><span style="font-size:12.5px;color:var(--sub)">one function_response — then the policy gate runs by itself</span>
+<button class="go">Continue ▸</button></div></form></div>"""
 
-    if w["phase"] == "proposal":
-        topic, angle = parse_pitch(lap.latest_proposal())
+    if w["phase"] == "blocked":
+        hits = ", ".join(w.get("hits") or [])
         return busy_html + f"""
-<div class="card"><div class="ql" style="margin-top:0">PROPOSAL FOR YOUR NEXT VIDEO · LAP {st.get('lap','?')}</div>
-<div class="prop"><img src="{my_avatar()}">
-<div style="flex:1"><div class="h0" style="font-size:21px">{topic}</div>
-<div class="h0s" style="margin-top:6px">{angle}</div></div></div>
-<form method="post" action="/ui/say">
-<div class="foot" style="gap:10px;margin-top:22px">
-<input type="text" name="text" placeholder="want something else? describe it…">
-<button class="ghost" name="quick" value="say" style="color:var(--ink)">↻ Change it</button>
-<button class="go" name="quick" value="accept" style="background:var(--amber);color:#3a2a08">✓ Make this video</button></div>
-<div class="h0s" style="margin-top:10px">next: a short form — subject · character · style</div></form></div>"""
+<div class="card"><div class="h0">Blocked — by your own policy.</div>
+<div class="h0s">“{w.get('direction','')}” contains <b>{hits}</b> (agent/policy_words.txt).
+Nothing was scripted, rendered or paid.</div>
+<form method="post" action="/ui/run"><div class="foot">
+<input type="text" name="hint" placeholder="a different idea">
+<button class="go">Start over ▸</button></div></form></div>"""
 
     return busy_html + '<div class="card"><div class="h0">Working…</div><div class="h0s">research is fanning out</div></div>'
 
@@ -483,8 +481,9 @@ def state_page(request: Request):
         for cid, name, resp in (drive.run(drive.pending(f"{rid}{suffix}")) if rid else []):
             open_calls.append(f"{name} · id {str(cid)[:8]}… · open")
     sess = "<br>".join(open_calls) or "no open calls"
-    prefs = st.get("choices") or st.get("prefs") or {}
-    prefs_s = f'<span class="hot">{prefs.get("style","")} · {prefs.get("character","")}</span>' if prefs else "—"
+    prefs = st.get("prefs") or {}
+    prefs_s = (f'<span class="hot">{st.get("direction") or prefs.get("last_direction", "")}</span>'
+               if (st.get("direction") or prefs) else "—")
     grefs = st.get("graph_report", {}).get("queries", [])
     world = " · ".join(q["id"] for q in grefs if q.get("rows")) or "not connected yet"
     mem = st.get("memory_facts", [])
@@ -493,7 +492,7 @@ def state_page(request: Request):
     rows = f"""
 <div class="row" style="opacity:.45"><img src="/static/art/gem-1.png"><div class="rn"><b>Turn</b><span>context window</span></div><div class="rv">gone when the turn ends</div><span class="life">seconds</span></div>
 <div class="row"><img src="/static/art/gem-2.png"><div class="rn"><b>Session</b><span>sessions.db</span></div><div class="rv mono">{sess}</div><span class="life">outlives the process</span></div>
-<div class="row"><img src="/static/art/gem-3.png"><div class="rn"><b>Run</b><span>state.json</span></div><div class="rv">lap {st.get('lap','—')} · prefs {prefs_s}</div><span class="life">yours across runs</span></div>
+<div class="row"><img src="/static/art/gem-3.png"><div class="rn"><b>Run</b><span>state.json</span></div><div class="rv">lap {st.get('lap','—')} · direction {prefs_s}</div><span class="life">yours across runs</span></div>
 <div class="row"><img src="/static/art/gem-4.png"><div class="rn"><b>World</b><span>BigQuery</span></div><div class="rv mono">{world}</div><span class="life">outlives every run</span></div>
 <div class="row"><img src="/static/art/gem-5.png"><div class="rn"><b>Memory</b><span>Memory Bank</span></div><div class="rv">{mem_html}</div><span class="life">the channel's</span></div>
 <div class="kill"><b>Kill anything.</b> These five survive.</div>"""
@@ -590,15 +589,9 @@ def ui_run(hint: str = Form("")):
     return RedirectResponse("/", status_code=303)
 
 
-@app.post("/ui/say")
-def ui_say(text: str = Form(""), quick: str = Form("say")):
-    spawn("say", "Yes — go with it." if quick == "accept" or not text.strip() else text)
-    return RedirectResponse("/", status_code=303)
-
-
 @app.post("/ui/answer")
-def ui_answer(subject: str = Form(...), character: str = Form(""), style: str = Form("low-poly")):
-    spawn("answer", "--subject", subject, "--character", character or "any", "--style", style)
+def ui_answer(pick: str = Form("1"), custom: str = Form("")):
+    spawn("auto", "direction", "--pick", pick, "--custom", custom)
     return RedirectResponse("/", status_code=303)
 
 
@@ -610,7 +603,13 @@ def ui_render():
 
 @app.post("/ui/approve")
 def ui_approve():
-    spawn("approve")
+    spawn("auto", "ship")
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/ui/rethumb")
+def ui_rethumb():
+    spawn("auto", "rethumb")
     return RedirectResponse("/", status_code=303)
 
 

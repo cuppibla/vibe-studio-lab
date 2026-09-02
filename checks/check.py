@@ -121,11 +121,13 @@ def gate_hitl():
     ri_calls = [cid for cid in latest if latest[cid][0] == "adk_request_input"]
     check("exactly ONE human pause in the graph (the form)", len(ri_calls) == 1,
           f"{len(ri_calls)} RequestInput calls")
-    check("your answer became the run's choices (schema fields, not prose)",
-          set(s.get("choices") or {}) >= {"subject", "character", "style"},
-          str(s.get("choices")))
-    check("your choices reached the script (subject/character/style)",
-          bool(s.get("choices", {}).get("style")))
+    check("3 candidate directions were written into state before the ask",
+          len(s.get("candidates") or []) == 3, str(len(s.get("candidates") or [])))
+    check("your pick became THE direction (state, not prose)",
+          bool(s.get("direction")), str(s.get("direction")))
+    check("the policy gate ROUTED your direction (OK or BLOCK, recorded)",
+          "policy" in (s.get("lineage", {}).get("gates") or {}),
+          str(s.get("lineage", {}).get("gates")))
 
 
 def gate_publish():
@@ -163,13 +165,20 @@ def gate_state():
     s = st()
     user_state = drive.run(drive.ensure_user_state("gate_state_probe"))
     prefs = user_state.get("user:prefs") or {}
-    check("user:prefs survives OUTSIDE any run's session", bool(prefs.get("style")))
-    check("prefs match the choices you made", prefs == s.get("choices"), str(prefs))
+    check("user:prefs survives OUTSIDE any run's session",
+          bool(prefs.get("last_direction")))
+    check("prefs remember THE direction you picked",
+          prefs.get("last_direction") == s.get("direction"), str(prefs))
     check("no temp: keys leaked into durable state",
           not [k for k in user_state if k.startswith("temp:")])
 
 
 def gate_graph():
+    from agent.graph import wf
+    check("read_graph is WIRED into the fan-out (the GRAPH_EDGE hole)",
+          any(e.from_node.name == "__START__" and e.to_node.name == "read_graph"
+              for e in wf.graph.edges) or
+          any(e.to_node.name == "read_graph" for e in wf.graph.edges))
     from bqgraph.queries import _bq, DATASET
     p = _bq().project
     graphs = [r.property_graph_name for r in _bq().query(
@@ -190,6 +199,9 @@ def gate_graph():
 
 
 def gate_memory():
+    from agent.graph import wf
+    check("read_memory is WIRED into the fan-out (the MEMORY_EDGE hole)",
+          any(e.to_node.name == "read_memory" for e in wf.graph.edges))
     from agent import memory
     check("the bank is provisioned (runs/memorybank.json)",
           (config.RUNS / "memorybank.json").exists())
@@ -216,8 +228,8 @@ def gate_loop():
     check("every cited memory EXISTS in the bank", all(c in valid for c in cited))
     check("the script obeyed the constraint (conclusion_first)",
           lin["hook"]["conclusion_first"] is True)
-    check("the form arrived PRE-FILLED from user:prefs",
-          bool(s.get("prefs", {}).get("style")))
+    check("the idle card could SUGGEST a topic (user:prefs carries one)",
+          bool(s.get("prefs", {}).get("last_direction")), str(s.get("prefs")))
 
 
 GATES = {"spinup": gate_spinup, "one": gate_one, "pending": gate_pending, "workflow": gate_workflow,

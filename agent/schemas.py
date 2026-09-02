@@ -13,10 +13,14 @@ class Brief(BaseModel):
     evidence: list[Evidence]
 
 
-class CreativeChoices(BaseModel):
-    subject: str
-    character: str
-    style: str            # low-poly | paper | bright
+class Direction(BaseModel):
+    title: str           # <=60 chars, filmable, characterful
+    angle: str           # the twist, one line
+    evidence: list[Evidence]
+
+
+class Directions(BaseModel):
+    candidates: list[Direction]   # exactly 3
 
 
 class Shot(BaseModel):
@@ -37,12 +41,19 @@ class RepairedPrompt(BaseModel):
     what_changed: str
 
 
-CREATIVE_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "subject": {"type": "string"},
-        "character": {"type": "string"},
-        "style": {"type": "string", "enum": ["low-poly", "paper", "bright"]},
-    },
-    "required": ["subject", "character", "style"],
-}
+def direction_schema(n_candidates: int) -> dict:
+    """The form the graph raises at the human door. Built at YIELD time so
+    the candidate count is real, not hardcoded - the schema IS the form.
+    In the dev UI you type just "1", "2" or "3" (or "custom" plus your own
+    line); Vibe Studio renders the same schema as a radio list."""
+    picks = [str(i + 1) for i in range(n_candidates)] + ["custom"]
+    return {
+        "type": "object",
+        "properties": {
+            "pick": {"type": "string", "enum": picks,
+                     "description": "1..N chooses a candidate; custom uses your own"},
+            "custom": {"type": "string",
+                       "description": "your own direction (only read when pick=custom)"},
+        },
+        "required": ["pick"],
+    }
