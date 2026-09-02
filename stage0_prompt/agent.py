@@ -5,9 +5,9 @@ chapters, each job becomes a NODE in a drawn graph - the codelab's
 replacement table maps sentence -> node, one by one. The tools here call
 the same sources the graph's research nodes read; only the shape differs.
 
-Run it twice with the same topic and watch: tools fire one at a time in
-whatever order the model fancies, the "agree with the creator" sentence
-can be talked past, and reviewing a run means re-reading the transcript.
+Run it and watch what you get: research folded into prose you must re-read,
+an "agree with the creator" sentence that can be talked past, and a
+blacklist the model certifies for itself. Nothing here is checkable.
 """
 from google.adk import Agent
 

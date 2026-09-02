@@ -28,7 +28,8 @@ def read_memory(node_input):
     """Fresh Memory Bank retrieve each run; records citable refs + constraints."""
     from . import memory
     try:
-        facts = memory.recall()
+        facts = []  # TODO: RECALL — delete me, uncomment below (Codelab 🧠)
+        # facts = memory.recall()
     except Exception as e:  # cloud hiccup -> honest empty, never a crash
         print(f"  [memory] unavailable ({str(e)[:60]}) -> empty")
         facts = []
@@ -117,7 +118,8 @@ def creative_gate(node_input: Brief):
 
 def persist_prefs(node_input):
     """Your choices outlive this run: `user:` keys are per-user, cross-session."""
-    yield Event(state={"user:prefs": node_input, "choices": node_input})
+    yield Event(state={"choices": node_input})  # TODO: PREFS — delete me, uncomment below (Codelab 💾)
+    # yield Event(state={"user:prefs": node_input, "choices": node_input})
     state.update(choices=node_input)                     # driver clipboard copy
     yield Event(output=node_input)
 
@@ -172,12 +174,13 @@ def store_script(node_input: Script):
 wf = Workflow(
     name="lap", description="research -> the human door -> script",
     edges=[
-        (START, scan_trends, join_research),
-        (START, read_memory, join_research),
-        (START, read_backcatalog, join_research),
-        (START, read_graph, join_research),
-        (join_research, compose_bundle, topic_gate, creative_gate,
-         persist_prefs, scripter, store_script),
+        # TODO: EDGES — delete me, uncomment the shape below (Codelab 🗺️, the EDGES hole)
+        # (START, scan_trends, join_research),
+        # (START, read_memory, join_research),
+        # (START, read_backcatalog, join_research),
+        # (START, read_graph, join_research),
+        # (join_research, compose_bundle, topic_gate, creative_gate,
+        #  persist_prefs, scripter, store_script),
     ])
 # NOTE: while the EDGES hole is open, wf has no edges. Importing this module
 # stays legal (the stage apps borrow its nodes); only RUNNING a lap trips the

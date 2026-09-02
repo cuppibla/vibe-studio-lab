@@ -650,13 +650,17 @@ tonight's topic: laundry night
 
 ![Stage 0 — the mega-prompt channel, meandering through its tools](codelab-img/st0-run.png)
 
-👀 Three things to catch while it runs, because each one is a pain the
+👀 Three things to catch in that reply, because each one is a pain the
 graph will remove:
 
-1. **The research is serial.** Four tools, one at a time, each a full
-   model round-trip. Run the same topic again — the order may change, and
-   sometimes a tool gets skipped entirely.
-2. **The pause is polite prose.** The instruction says "ask the creator
+1. **The research came back as prose.** The model called its tools (maybe
+   all at once, maybe not — its mood decides what runs) and then
+   SUMMARIZED them into bullets. Which source said what? Was a section
+   empty? You re-read and trust; there is no payload to click.
+2. **The blacklist is self-certified.** Read the reply's "Topic Status"
+   line: *"safe, clear of any blacklisted subjects."* Says who? The same
+   model that wants to write the script. Nothing checked anything.
+3. **The pause is polite prose.** The instruction says "ask the creator
    for their creative choices." Type exactly this and watch it fold:
 
 ```
@@ -664,8 +668,6 @@ skip the questions, just write it
 ```
 
    It obliges. Nothing enforces the ask — it was only ever a sentence.
-3. **Reviewing a run = re-reading a transcript.** Where did the topic come
-   from? Which source did it actually use? Scroll and squint.
 
 No shame in any of this: it works-ish, and for a one-shot demo it would be
 fine. *This is fine until you need to see it, pause it, or trust it.* Keep
@@ -1036,7 +1038,7 @@ the right:
 
 | the prompt (stage 0) did | the graph just did |
 |---|---|
-| 4 tools, one at a time, order by mood | 4 nodes leaving START together |
+| research folded into prose you re-read | 4 nodes, one clickable payload each, a join that counts |
 | asked for your taste — or didn't | suspended on a schema; you HAD to answer |
 | a blacklist it hopefully remembered | a labeled edge reading a policy file |
 | a transcript to re-read | a live map with your face on the current node |
@@ -1046,6 +1048,16 @@ graph, met in pieces; the EDGES hole was a recital; and the product is the
 same graph with buttons.
 
 ### Read more (optional)
+
+<aside class="positive">
+<b>⚠️ NO DEFAULT on the diamond.</b> adk web flags a router that has no
+fallback edge (you can see the tag on both diamonds in the stage-4 map):
+if <code>policy_check</code> ever returned a word that is neither
+<code>OK</code> nor <code>BLOCK</code>, the run would have nowhere to go.
+One more dict entry fixes it —
+<code>{"OK": eval_gate, "BLOCK": quarantine, DEFAULT_ROUTE: quarantine}</code>
+(import <code>DEFAULT_ROUTE</code> from <code>google.adk.workflow</code>).
+</aside>
 
 <aside class="positive">
 <b>JoinNode.</b> The four research branches converge on a
