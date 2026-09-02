@@ -1,0 +1,6 @@
+# The channel's publish policy, as DATA. One word per line.
+# policy_check reads this file at decision time - add a word, and the very
+# next run refuses titles containing it. No restart, no redeploy.
+competitor
+hateful
+gore

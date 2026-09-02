@@ -342,9 +342,19 @@ def now_body() -> str:
 
     if st.get("published"):
         v = st["published"]
+        room = st.get("room") or {}
+        if room.get("url"):
+            room_row = (f'<div class="h0s">and the room can see you — '
+                        f'<a href="{room["url"]}" target="_blank">watch it with everyone else ↗</a></div>')
+        elif room.get("skipped") and room["skipped"] != "no room configured":
+            room_row = (f'<div class="h0s" style="color:var(--sub)">room: skipped '
+                        f'({room["skipped"]})</div>')
+        else:
+            room_row = ""
         return busy_html + f"""
 <div class="card"><div class="h0">On the wall.</div>
 <div class="h0s mono">{v.get("video_id")} · the panel is watching</div>
+{room_row}
 <div class="foot"><a class="ghost" href="/channel">See it on Channel</a>
 <form method="post" action="/ui/learn" style="margin-left:auto"><div style="text-align:right">
 <button class="go">Learn from the audience ▸</button><br>

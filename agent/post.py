@@ -1,6 +1,7 @@
 """Post-production workflow (pure compute + dict-edge gates).
 editor -> policy_check(OK/BLOCK) -> eval_gate(PASS/FAIL) -> publisher.
 Gates are checker EVALS - and they run BEFORE the side effect."""
+import pathlib
 import time
 
 from google.adk import Event, Runner, Workflow
@@ -9,7 +10,15 @@ from google.genai import types as gtypes
 
 from . import config, drive, state
 
-POLICY_BLACKLIST = ["competitor", "hateful", "gore"]
+# Policy is DATA, not code: the words live in policy_words.txt beside this
+# file, and policy_check reads them at DECISION time - edit the file, and
+# the very next run enforces it. No restart, no redeploy.
+POLICY_FILE = pathlib.Path(__file__).parent / "policy_words.txt"
+
+
+def policy_words() -> list[str]:
+    return [w.strip().lower() for w in POLICY_FILE.read_text().splitlines()
+            if w.strip() and not w.strip().startswith("#")]
 
 
 def editor(node_input):
@@ -29,7 +38,7 @@ def editor(node_input):
 def policy_check(node_input):
     st = state.load()
     text = (st["script"]["title"] + " " + st["script"]["description"]).lower()
-    bad = [w for w in POLICY_BLACKLIST if w in text]
+    bad = [w for w in policy_words() if w in text]
     st["lineage"]["gates"]["policy"] = {"ok": not bad, "hits": bad}
     state.save(st)
     return Event(output=node_input, route="BLOCK" if bad else "OK")

@@ -61,11 +61,14 @@ else:
     except ImportError:
         tick("Memory Bank SDK", False, "uv sync")
 
-# the three sandbox workflows of chapter 🔺 - adk web lists them as apps
-for app in ("shape1_line", "shape2_router", "shape3_fanout"):
+# the five stage apps the workflow act grows through - adk web lists them
+for app in ("stage0_prompt", "stage1_fanout", "stage2_pause",
+            "stage3_script", "stage4_gates"):
     try:
         mod = __import__(f"{app}.agent", fromlist=["root_agent"])
-        tick(f"{app} loads ({len(mod.root_agent.graph.edges)} edges)", True)
+        n = getattr(getattr(mod.root_agent, "graph", None), "edges", None)
+        label = f"{app} loads" + (f" ({len(n)} edges)" if n is not None else "")
+        tick(label, True)
     except Exception as e:
         tick(f"{app} loads", False, str(e)[:70])
 
@@ -77,6 +80,20 @@ except Exception:
     # not a failure: the studio is deliberately booted in section 2,
     # right before the first click that needs it
     print(f"  - Vibe Studio: not running yet (section 2 boots it)")
+
+# the room: optional. Configured -> reachable is a tick; blank -> local only.
+room_url = os.environ.get("VIBETUBE_URL", "").rstrip("/")
+room_event = os.environ.get("VIBETUBE_EVENT", "").strip()
+if room_url and room_event:
+    try:
+        import httpx
+        r = httpx.get(f"{room_url}/api/events/{room_event}", timeout=5)
+        tick(f"room: connected ({room_event})", r.status_code == 200,
+             f"platform said {r.status_code} — check VIBETUBE_URL/EVENT")
+    except Exception as e:
+        tick(f"room: connected ({room_event})", False, str(e)[:70])
+else:
+    print("  - room: not configured (local only — publishing still works)")
 
 print("\nPREFLIGHT " + ("GREEN" if ok else "NOT READY - fix the ✗ lines above"))
 sys.exit(0 if ok else 1)

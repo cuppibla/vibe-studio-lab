@@ -150,6 +150,13 @@ def gate_publish():
     check("the panel watched immediately (24 synthetic views)", v == 24, str(v))
     check("the thumbnail shipped with the video",
           bool((s.get("thumb") or {}).get("ref")))
+    import os
+    if os.environ.get("VIBETUBE_URL") and os.environ.get("VIBETUBE_EVENT"):
+        check("the room premiere happened silently (state.room has a url)",
+              bool((s.get("room") or {}).get("url")),
+              str((s.get("room") or {}).get("skipped", "no room record")))
+    else:
+        print("  - room: not configured — silent premiere skipped (local only)")
 
 
 def gate_state():

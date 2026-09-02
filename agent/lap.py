@@ -13,6 +13,11 @@ def wf_sid() -> str:
 def start_lap(hint: str) -> str:
     """Fresh run scaffolding; returns the kickoff message for the first leg."""
     from world import broker, platform
+    if not wf.edges:
+        raise NotImplementedError(
+            "TODO: EDGES — the graph has no edges yet. Open agent/graph.py, "
+            "delete the TODO line and uncomment the six lines under it "
+            "(Codelab: 'the EDGES hole').")
     st = state.load()
     creds = st.get("creds") or platform.join("annie")
     run_id = f"run_{int(time.time())}"

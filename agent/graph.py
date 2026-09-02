@@ -28,8 +28,7 @@ def read_memory(node_input):
     """Fresh Memory Bank retrieve each run; records citable refs + constraints."""
     from . import memory
     try:
-        facts = []  # TODO: RECALL — delete me, uncomment below (Codelab S5)
-        # facts = memory.recall()
+        facts = memory.recall()
     except Exception as e:  # cloud hiccup -> honest empty, never a crash
         print(f"  [memory] unavailable ({str(e)[:60]}) -> empty")
         facts = []
@@ -118,8 +117,7 @@ def creative_gate(node_input: Brief):
 
 def persist_prefs(node_input):
     """Your choices outlive this run: `user:` keys are per-user, cross-session."""
-    yield Event(state={"choices": node_input})  # TODO: PREFS — delete me, uncomment below (Codelab S3)
-    # yield Event(state={"user:prefs": node_input, "choices": node_input})
+    yield Event(state={"user:prefs": node_input, "choices": node_input})
     state.update(choices=node_input)                     # driver clipboard copy
     yield Event(output=node_input)
 
@@ -152,7 +150,10 @@ def store_script(node_input: Script):
     for e in evidence:
         if e["source"] in report:
             e["rows_snapshot"] = report[e["source"]]["rows"]
-    lin = st["lineage"]
+    # standalone runs (the stage apps) have no lap driver to scaffold the ledger
+    lin = st.setdefault("lineage", {"evidence": [], "memory_refs": [], "graph_refs": [],
+                                    "shots": [], "repair": [], "deadline": [],
+                                    "approvals": [], "gates": {}})
     lin["topic"] = brief.get("topic", node_input.title)
     lin["angle"] = brief.get("angle", "")
     lin["evidence"] = evidence
@@ -171,16 +172,13 @@ def store_script(node_input: Script):
 wf = Workflow(
     name="lap", description="research -> the human door -> script",
     edges=[
-        # TODO: EDGES — delete me, uncomment the shape below (Codelab S2)
-        # (START, scan_trends, join_research),
-        # (START, read_memory, join_research),
-        # (START, read_backcatalog, join_research),
-        # (START, read_graph, join_research),
-        # (join_research, compose_bundle, topic_gate, creative_gate,
-        #  persist_prefs, scripter, store_script),
+        (START, scan_trends, join_research),
+        (START, read_memory, join_research),
+        (START, read_backcatalog, join_research),
+        (START, read_graph, join_research),
+        (join_research, compose_bundle, topic_gate, creative_gate,
+         persist_prefs, scripter, store_script),
     ])
-if not wf.edges:
-    raise NotImplementedError(
-        "TODO: EDGES — the graph has no edges yet. Open agent/graph.py, delete "
-        "the TODO line and uncomment the six lines under it (Codelab: 'Draw the "
-        "shape yourself').")
+# NOTE: while the EDGES hole is open, wf has no edges. Importing this module
+# stays legal (the stage apps borrow its nodes); only RUNNING a lap trips the
+# guard - see lap.start_lap.

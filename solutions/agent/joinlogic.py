@@ -87,6 +87,14 @@ def try_finish() -> dict | None:
     st = state.load()
     st["next_lap"] = st["lap"] + 1
     state.save(st)
+    if result.get("published"):
+        # the room, silently: if Setup pointed .env at one, the same press
+        # premieres there too - and a room failure can never fail the lap
+        from . import premiere
+        room = premiere.publish_to_room(state.load())
+        state.update(room=room)
+        if room.get("url"):
+            print(f"  the room can see you: {room['url']}")
     return result
 
 

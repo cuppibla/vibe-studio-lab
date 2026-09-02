@@ -17,9 +17,12 @@ import httpx
 
 from . import config, state
 
-URL = os.environ.get("VIBETUBE_URL", "").rstrip("/")
-EVENT = os.environ.get("VIBETUBE_EVENT", "").strip()
-NAME = os.environ.get("VIBETUBE_NAME", "").strip() or "Vibe Studio creator"
+def _room() -> tuple[str, str, str]:
+    """Read the room's address at CALL time, so a .env filled during Setup
+    is honored no matter which process asks."""
+    return (os.environ.get("VIBETUBE_URL", "").rstrip("/"),
+            os.environ.get("VIBETUBE_EVENT", "").strip(),
+            os.environ.get("VIBETUBE_NAME", "").strip() or "Vibe Studio creator")
 
 
 def package(st) -> pathlib.Path:
@@ -46,50 +49,74 @@ def package(st) -> pathlib.Path:
     return out
 
 
+def publish_to_room(st) -> dict:
+    """The silent path Finish runs after every wall publish. Returns
+    {'url': …} on success or {'skipped': reason} otherwise - it NEVER
+    raises, because a room failure must never fail the lap."""
+    url, event, name = _room()
+    if not url or not event:
+        return {"skipped": "no room configured"}
+    pub = st.get("published")
+    if not pub:
+        return {"skipped": "nothing published yet"}
+    try:
+        cut = package(st)
+        mins, secs = divmod(round(st.get("duration_ms", 6000) / 1000), 60)
+
+        files = {"videoFile": (cut.name, cut.open("rb"), "video/mp4")}
+        thumb = (st.get("thumb") or {}).get("ref", "")
+        thumb_file = config.ROOT / "app" / thumb.lstrip("/") if thumb else None
+        if thumb_file and thumb_file.exists():
+            files["thumbnailFile"] = (thumb_file.name, thumb_file.open("rb"),
+                                      "image/png")
+
+        # YOUR avatar rides along - the room sees the face you made
+        from world import portrait
+        mine = portrait.latest()
+        av = config.ROOT / "app" / mine["url"].lstrip("/") if mine else None
+        if av and av.exists():
+            files["avatarFile"] = (av.name, av.open("rb"), "image/png")
+
+        r = httpx.post(
+            f"{url}/api/events/{event}/videos",
+            data={"title": st["script"]["title"],
+                  "description": st["script"]["description"],
+                  "duration": f"{mins}:{secs:02d}",
+                  "displayName": name,
+                  "projectId": pub["video_id"]},
+            files=files, timeout=120)
+        if r.status_code != 200:
+            try:
+                detail = r.json().get("detail", r.text[:120])
+            except Exception:
+                detail = r.text[:120]
+            return {"skipped": f"{r.status_code} — {detail}"}
+        vid = r.json()["id"]
+        return {"url": f"{url}/e/{event}?v={vid}"}
+    except Exception as e:  # ffmpeg missing, network down, anything
+        return {"skipped": str(e)[:120]}
+
+
 def main():
-    if not URL or not EVENT:
+    """The loud back-door: re-post the current lap by hand."""
+    url, event, _ = _room()
+    if not url or not event:
         print("no room configured - set VIBETUBE_URL and VIBETUBE_EVENT in .env"
               "\n(your instructor has both; without a live event this step is"
               " optional - nothing later depends on it)")
         return
     st = state.load()
-    pub = st.get("published")
-    if not pub:
+    if not st.get("published"):
         print("nothing published yet - finish a lap first"); return
-
     print("── packaging the premiere cut (ffmpeg, ~5s) ──")
-    cut = package(st)
-    mins, secs = divmod(round(st.get("duration_ms", 6000) / 1000), 60)
-
-    files = {"videoFile": (cut.name, cut.open("rb"), "video/mp4")}
-    thumb = (st.get("thumb") or {}).get("ref", "")
-    thumb_file = config.ROOT / "app" / thumb.lstrip("/") if thumb else None
-    if thumb_file and thumb_file.exists():
-        files["thumbnailFile"] = (thumb_file.name, thumb_file.open("rb"), "image/png")
-
-    # YOUR avatar from chapter 2 rides along - the room sees the face you made
-    from world import portrait
-    mine = portrait.latest()
-    av = config.ROOT / "app" / mine["url"].lstrip("/") if mine else None
-    if av and av.exists():
-        files["avatarFile"] = (av.name, av.open("rb"), "image/png")
-        print(f"  attaching your avatar: {mine['url']}")
-
-    print(f"── POST {URL}/api/events/{EVENT}/videos ──")
-    r = httpx.post(
-        f"{URL}/api/events/{EVENT}/videos",
-        data={"title": st["script"]["title"],
-              "description": st["script"]["description"],
-              "duration": f"{mins}:{secs:02d}",
-              "displayName": NAME,
-              "projectId": pub["video_id"]},
-        files=files, timeout=120)
-    if r.status_code != 200:
-        print(f"platform said {r.status_code}: {r.json().get('detail', r.text[:120])}")
-        return
-    vid = r.json()["id"]
-    print("── the room can see you now ──")
-    print(f"  watch it with everyone else: {URL}/e/{EVENT}?v={vid}")
+    print(f"── POST {url}/api/events/{event}/videos ──")
+    res = publish_to_room(st)
+    state.update(room=res)
+    if res.get("url"):
+        print("── the room can see you now ──")
+        print(f"  watch it with everyone else: {res['url']}")
+    else:
+        print(f"room: skipped ({res.get('skipped')})")
 
 
 if __name__ == "__main__":

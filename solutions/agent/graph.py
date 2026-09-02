@@ -150,7 +150,10 @@ def store_script(node_input: Script):
     for e in evidence:
         if e["source"] in report:
             e["rows_snapshot"] = report[e["source"]]["rows"]
-    lin = st["lineage"]
+    # standalone runs (the stage apps) have no lap driver to scaffold the ledger
+    lin = st.setdefault("lineage", {"evidence": [], "memory_refs": [], "graph_refs": [],
+                                    "shots": [], "repair": [], "deadline": [],
+                                    "approvals": [], "gates": {}})
     lin["topic"] = brief.get("topic", node_input.title)
     lin["angle"] = brief.get("angle", "")
     lin["evidence"] = evidence
@@ -176,8 +179,6 @@ wf = Workflow(
         (join_research, compose_bundle, topic_gate, creative_gate,
          persist_prefs, scripter, store_script),
     ])
-if not wf.edges:
-    raise NotImplementedError(
-        "TODO: EDGES — the graph has no edges yet. Open agent/graph.py, delete "
-        "the TODO line and uncomment the six lines under it (Codelab: 'Draw the "
-        "shape yourself').")
+# NOTE: while the EDGES hole is open, wf has no edges. Importing this module
+# stays legal (the stage apps borrow its nodes); only RUNNING a lap trips the
+# guard - see lap.start_lap.
