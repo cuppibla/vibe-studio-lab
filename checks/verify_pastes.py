@@ -17,8 +17,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from checks.holes import HOLES  # noqa: E402
 
-SHOWN_HOLES = {"RESUME", "EDGES", "CREATIVE_GATE", "JOIN_CONDITION",
-               "EDGE_TABLE", "GENERATE"}
+SHOWN_HOLES = {"RESUME", "EDGES", "GRAPH_EDGE", "MEMORY_EDGE",
+               "JOIN_CONDITION", "EDGE_TABLE", "GENERATE"}
 md = (ROOT / "CODELAB.md").read_text()
 pattern = re.compile(
     r"<!-- code: (\w+) -->\s*```(?:python|sql)\n(.*?)```", re.S)
