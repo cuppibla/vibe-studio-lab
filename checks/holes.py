@@ -15,7 +15,7 @@ filled lines; byte-identical to solutions/). Consumed by:
 HOLES = {
     # S1 · long running — delivering a result, the three lines
     "RESUME": ("agent/drive.py",
-               '''    raise NotImplementedError("TODO: RESUME — delete me, uncomment the delivery below (Codelab S1)")
+               '''    raise NotImplementedError("TODO: RESUME — delete me, uncomment the delivery below (Codelab ⏳)")
     # part = gtypes.Part(function_response=gtypes.FunctionResponse(
     #     id=call_id, name=name, response=response))
     # return await _drive(node, session_id, [part], user_id)''',
@@ -25,7 +25,7 @@ HOLES = {
 
     # S2 · workflow — the shape is the parallelism
     "EDGES": ("agent/graph.py",
-              '''        # TODO: EDGES — delete me, uncomment the shape below (Codelab S2)
+              '''        # TODO: EDGES — delete me, uncomment the shape below (Codelab 🗺️, the EDGES hole)
         # (START, scan_trends, join_research),
         # (START, read_memory, join_research),
         # (START, read_backcatalog, join_research),
@@ -41,7 +41,7 @@ HOLES = {
 
     # S2 · the graph asks a person, one structured form
     "CREATIVE_GATE": ("agent/graph.py",
-                      '''    raise NotImplementedError("TODO: CREATIVE_GATE — delete me, uncomment below (Codelab S2)")
+                      '''    raise NotImplementedError("TODO: CREATIVE_GATE — delete me, uncomment below (Codelab 🗺️)")
     # yield RequestInput(
     #     message="Creative brief - pick the subject, character, and style.",
     #     response_schema=CREATIVE_SCHEMA,
@@ -55,7 +55,7 @@ HOLES = {
 
     # S2 · the join is yours
     "JOIN_CONDITION": ("agent/joinlogic.py",
-                       '''    raise NotImplementedError("TODO: JOIN_CONDITION — delete me, uncomment the two lines below (Codelab S2)")
+                       '''    raise NotImplementedError("TODO: JOIN_CONDITION — delete me, uncomment the two lines below (Codelab 🏁)")
     # still = drive.run(drive.pending(desk_sid(st)))
     # human_ok = any(a["kind"] == "thumb" for a in st["lineage"]["approvals"])''',
                        '''    still = drive.run(drive.pending(desk_sid(st)))
@@ -63,13 +63,13 @@ HOLES = {
 
     # S3 · prefs are state — one word, one lifetime
     "PREFS": ("agent/graph.py",
-              '''    yield Event(state={"choices": node_input})  # TODO: PREFS — delete me, uncomment below (Codelab S3)
+              '''    yield Event(state={"choices": node_input})  # TODO: PREFS — delete me, uncomment below (Codelab 💾)
     # yield Event(state={"user:prefs": node_input, "choices": node_input})''',
               '    yield Event(state={"user:prefs": node_input, "choices": node_input})'),
 
     # S4 · a graph is a lens over tables — one edge is the vocabulary
     "EDGE_TABLE": ("bqgraph/load.py",
-                   '''    -- TODO: EDGE_TABLE — delete me, uncomment the watched edge below (Codelab S4)
+                   '''    -- TODO: EDGE_TABLE — delete me, uncomment the watched edge below (Codelab 🌍)
     -- `{d}.watched` AS watched
     --   KEY (viewer_id, video_id)
     --   SOURCE KEY (viewer_id) REFERENCES viewers (id)
@@ -81,7 +81,7 @@ HOLES = {
 
     # S5 · learned state — the WRITE path
     "GENERATE": ("agent/memory.py",
-                 '''    raise NotImplementedError("TODO: GENERATE — delete me, uncomment the write below (Codelab S5)")
+                 '''    raise NotImplementedError("TODO: GENERATE — delete me, uncomment the write below (Codelab 🧠)")
     # op = _cli().agent_engines.memories.generate(
     #     name=name,
     #     direct_memories_source=vt.GenerateMemoriesRequestDirectMemoriesSource(
@@ -95,7 +95,7 @@ HOLES = {
 
     # S5 · the READ path — one line closes the loop
     "RECALL": ("agent/graph.py",
-               '''        facts = []  # TODO: RECALL — delete me, uncomment below (Codelab S5)
+               '''        facts = []  # TODO: RECALL — delete me, uncomment below (Codelab 🧠)
         # facts = memory.recall()''',
                '        facts = memory.recall()'),
 }
