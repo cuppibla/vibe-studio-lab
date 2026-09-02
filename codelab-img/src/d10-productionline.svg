@@ -1,0 +1,154 @@
+<svg width="1600" height="1190" viewBox="0 0 1600 1190" xmlns="http://www.w3.org/2000/svg">
+<defs>
+ <marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C9BCA9"/></marker>
+ <marker id="aT" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C96442"/></marker>
+ <marker id="aA" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#B4802A"/></marker>
+</defs>
+<rect width="1600" height="1190" fill="#FAF6F0"/>
+
+<text x="70" y="72" font-family="-apple-system,'SF Pro Text','Helvetica Neue',Arial" font-size="44" font-weight="800" fill="#2B2320">The production line</text>
+<text x="70" y="110" font-family="-apple-system,'SF Pro Text','Helvetica Neue',Arial" font-size="22" fill="#8B7E70">one lap, end to end — a graph for research, the world for renders, a second graph for shipping</text>
+
+<!-- ═══ band 1 · wf, the lap graph ═══ -->
+<rect x="60" y="150" width="1480" height="300" rx="20" fill="#FFFFFF" stroke="#E8DFD2" stroke-width="2.5"/>
+<text x="88" y="188" font-family="'SF Mono',Menlo,Consolas" font-size="17" fill="#2B2320" font-weight="700">wf · the lap graph — agent/graph.py</text>
+<text x="88" y="212" font-family="-apple-system,Arial" font-size="15" fill="#8B7E70">stages 1–3 grew this, edge for edge · the EDGES hole is you writing it into the real file</text>
+
+<!-- START -->
+<circle cx="140" cy="330" r="26" fill="#2B2320"/>
+<text x="140" y="336" font-family="'SF Mono',Menlo,Consolas" font-size="13" fill="#FFFFFF" text-anchor="middle">START</text>
+
+<!-- 4 readers stacked -->
+<g font-family="'SF Mono',Menlo,Consolas" font-size="15" font-weight="700" fill="#2B2320">
+ <rect x="210" y="238" width="212" height="40" rx="10" fill="#EFF4EC" stroke="#6E9A68" stroke-width="2.5"/><text x="316" y="264" text-anchor="middle">scan_trends</text>
+ <rect x="210" y="288" width="212" height="40" rx="10" fill="#EFF4EC" stroke="#6E9A68" stroke-width="2.5"/><text x="316" y="314" text-anchor="middle">read_memory</text>
+ <rect x="210" y="338" width="212" height="40" rx="10" fill="#EFF4EC" stroke="#6E9A68" stroke-width="2.5"/><text x="316" y="364" text-anchor="middle">read_backcatalog</text>
+ <rect x="210" y="388" width="212" height="40" rx="10" fill="#EFF4EC" stroke="#6E9A68" stroke-width="2.5"/><text x="316" y="414" text-anchor="middle">read_graph</text>
+</g>
+<path d="M166,318 L188,300 L202,262" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<path d="M166,324 L202,309" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<path d="M166,338 L202,354" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<path d="M166,344 L188,372 L202,404" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+
+<!-- join + compose -->
+<rect x="470" y="308" width="150" height="46" rx="10" fill="#F6F1E8" stroke="#C9BCA9" stroke-width="2.5"/>
+<text x="545" y="337" font-family="'SF Mono',Menlo,Consolas" font-size="15" font-weight="700" fill="#2B2320" text-anchor="middle">join_research</text>
+<path d="M422,258 L446,258 L446,320 L462,324" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<path d="M422,308 L446,308 L446,326 L462,328" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<path d="M422,358 L446,358 L446,336 L462,334" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<path d="M422,408 L446,408 L446,342 L462,338" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+
+<rect x="650" y="308" width="170" height="46" rx="10" fill="#FFFFFF" stroke="#E8DFD2" stroke-width="2.5"/>
+<text x="735" y="337" font-family="'SF Mono',Menlo,Consolas" font-size="15" font-weight="700" fill="#2B2320" text-anchor="middle">compose_bundle</text>
+<path d="M620,331 L642,331" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+
+<!-- topic_gate agent -->
+<rect x="850" y="308" width="150" height="46" rx="10" fill="#8B7EC8" stroke="#8B7EC8" stroke-width="2.5"/>
+<text x="925" y="337" font-family="'SF Mono',Menlo,Consolas" font-size="15" font-weight="700" fill="#FFFFFF" text-anchor="middle">✦ topic_gate</text>
+<path d="M820,331 L842,331" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+
+<!-- creative_gate human pause -->
+<rect x="1030" y="304" width="182" height="54" rx="10" fill="#FFF8E9" stroke="#B4802A" stroke-width="3"/>
+<text x="1121" y="327" font-family="'SF Mono',Menlo,Consolas" font-size="15" font-weight="700" fill="#2B2320" text-anchor="middle">⏸ creative_gate</text>
+<text x="1121" y="347" font-family="-apple-system,Arial" font-size="13" fill="#8B7E70" text-anchor="middle">pauses for YOU · the form</text>
+<path d="M1000,331 L1022,331" fill="none" stroke="#B4802A" stroke-width="2.5" marker-end="url(#aA)"/>
+
+<!-- prefs / scripter / store -->
+<rect x="1242" y="308" width="130" height="46" rx="10" fill="#FFFFFF" stroke="#E8DFD2" stroke-width="2.5"/>
+<text x="1307" y="337" font-family="'SF Mono',Menlo,Consolas" font-size="14" font-weight="700" fill="#2B2320" text-anchor="middle">persist_prefs</text>
+<path d="M1212,331 L1234,331" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+
+<rect x="1242" y="380" width="130" height="46" rx="10" fill="#8B7EC8" stroke="#8B7EC8" stroke-width="2.5"/>
+<text x="1307" y="409" font-family="'SF Mono',Menlo,Consolas" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">✦ scripter</text>
+<path d="M1307,354 L1307,372" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+
+<rect x="1402" y="380" width="120" height="46" rx="10" fill="#FFFFFF" stroke="#E8DFD2" stroke-width="2.5"/>
+<text x="1462" y="409" font-family="'SF Mono',Menlo,Consolas" font-size="13" font-weight="700" fill="#2B2320" text-anchor="middle">store_script</text>
+<path d="M1372,403 L1394,403" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+
+<!-- band1 -> band2 -->
+<path d="M1462,426 L1462,470 L800,470 L800,508" fill="none" stroke="#C96442" stroke-width="3.5" marker-end="url(#aT)"/>
+<rect x="812" y="466" width="176" height="30" rx="9" fill="#FBEEE8" stroke="#C96442" stroke-width="2"/>
+<text x="900" y="486" font-family="'SF Mono',Menlo,Consolas" font-size="14" fill="#C96442" text-anchor="middle">the 3-shot script</text>
+
+<!-- ═══ band 2 · the world ═══ -->
+<rect x="60" y="510" width="1480" height="250" rx="20" fill="#FAF6F0" stroke="#B4802A" stroke-width="2.5" stroke-dasharray="10 7"/>
+<text x="88" y="548" font-family="'SF Mono',Menlo,Consolas" font-size="17" fill="#2B2320" font-weight="700">the world — deliberately NOT a graph</text>
+<text x="88" y="572" font-family="-apple-system,Arial" font-size="15" fill="#8B7E70">machine waits live in the desk's plain session, the one the avatar chapter taught: a resumed graph re-runs its nodes, and a render must not submit twice</text>
+
+<rect x="120" y="610" width="360" height="110" rx="14" fill="#FFFFFF" stroke="#E8DFD2" stroke-width="2.5"/>
+<text x="144" y="646" font-family="'SF Mono',Menlo,Consolas" font-size="16" font-weight="700" fill="#2B2320">the desk · render_submit ×3</text>
+<text x="144" y="672" font-family="-apple-system,Arial" font-size="14" fill="#8B7E70">LongRunningFunctionTool — three pending rows,</text>
+<text x="144" y="692" font-family="-apple-system,Arial" font-size="14" fill="#8B7E70">no process waits · + your thumbnail is generated</text>
+
+<rect x="560" y="610" width="250" height="110" rx="14" fill="#FFF8E9" stroke="#B4802A" stroke-width="3"/>
+<text x="584" y="646" font-family="'SF Mono',Menlo,Consolas" font-size="16" font-weight="700" fill="#2B2320">⏸ YOU · Approve</text>
+<text x="584" y="672" font-family="-apple-system,Arial" font-size="14" fill="#8B7E70">the thumbnail — one click,</text>
+<text x="584" y="692" font-family="-apple-system,Arial" font-size="14" fill="#8B7E70">one function_response by id</text>
+
+<rect x="890" y="610" width="530" height="110" rx="14" fill="#FFFFFF" stroke="#E8DFD2" stroke-width="2.5"/>
+<text x="914" y="646" font-family="'SF Mono',Menlo,Consolas" font-size="16" font-weight="700" fill="#2B2320">Finish ▸ = the worker (agent/finish.py)</text>
+<text x="914" y="672" font-family="-apple-system,Arial" font-size="14" fill="#8B7E70">polls the farm · delivers every result by call id · medic rewrites a failed</text>
+<text x="914" y="692" font-family="-apple-system,Arial" font-size="14" fill="#8B7E70">shot · deadline bounds a straggler · try_finish() = your two lines say done</text>
+
+<path d="M480,665 L552,665" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<path d="M810,665 L882,665" fill="none" stroke="#B4802A" stroke-width="2.5" marker-end="url(#aA)"/>
+
+<!-- band2 -> band3 -->
+<path d="M1155,720 L1155,758 L800,758 L800,796" fill="none" stroke="#C96442" stroke-width="3.5" marker-end="url(#aT)"/>
+<rect x="812" y="754" width="140" height="30" rx="9" fill="#FBEEE8" stroke="#C96442" stroke-width="2"/>
+<text x="882" y="774" font-family="'SF Mono',Menlo,Consolas" font-size="14" fill="#C96442" text-anchor="middle">all done</text>
+
+<!-- ═══ band 3 · wf_post ═══ -->
+<rect x="60" y="798" width="1480" height="310" rx="20" fill="#FFFFFF" stroke="#E8DFD2" stroke-width="2.5"/>
+<text x="88" y="836" font-family="'SF Mono',Menlo,Consolas" font-size="17" fill="#2B2320" font-weight="700">wf_post · the publish gates — agent/post.py</text>
+<text x="88" y="860" font-family="-apple-system,Arial" font-size="15" fill="#8B7E70">you bench-tested this decision core at stage 4 — now it judges real traffic, BEFORE the side effect</text>
+
+<circle cx="140" cy="960" r="26" fill="#2B2320"/>
+<text x="140" y="966" font-family="'SF Mono',Menlo,Consolas" font-size="13" fill="#FFFFFF" text-anchor="middle">START</text>
+
+<rect x="220" y="937" width="130" height="46" rx="10" fill="#FFFFFF" stroke="#E8DFD2" stroke-width="2.5"/>
+<text x="285" y="966" font-family="'SF Mono',Menlo,Consolas" font-size="15" font-weight="700" fill="#2B2320" text-anchor="middle">editor</text>
+<path d="M166,960 L212,960" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+
+<rect x="410" y="930" width="196" height="60" rx="10" fill="#FFF8E9" stroke="#B4802A" stroke-width="3"/>
+<text x="508" y="955" font-family="'SF Mono',Menlo,Consolas" font-size="15" font-weight="700" fill="#2B2320" text-anchor="middle">policy_check</text>
+<text x="508" y="977" font-family="-apple-system,Arial" font-size="13" fill="#8B7E70" text-anchor="middle">reads policy_words.txt</text>
+<path d="M350,960 L402,960" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+
+<rect x="700" y="930" width="180" height="60" rx="10" fill="#FFF8E9" stroke="#B4802A" stroke-width="3"/>
+<text x="790" y="955" font-family="'SF Mono',Menlo,Consolas" font-size="15" font-weight="700" fill="#2B2320" text-anchor="middle">eval_gate</text>
+<text x="790" y="977" font-family="-apple-system,Arial" font-size="13" fill="#8B7E70" text-anchor="middle">3 conduct checks</text>
+<path d="M606,948 L692,948" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<rect x="618" y="922" width="52" height="26" rx="8" fill="#FFF8E9" stroke="#B4802A" stroke-width="1.8"/>
+<text x="644" y="940" font-family="'SF Mono',Menlo,Consolas" font-size="13" fill="#B4802A" text-anchor="middle">OK</text>
+
+<rect x="700" y="1030" width="180" height="46" rx="10" fill="#F3F1EE" stroke="#B9AFA2" stroke-width="2.5"/>
+<text x="790" y="1059" font-family="'SF Mono',Menlo,Consolas" font-size="14" font-weight="700" fill="#8B7E70" text-anchor="middle">quarantine</text>
+<path d="M560,990 L560,1053 L692,1053" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<rect x="586" y="1027" width="78" height="26" rx="8" fill="#FFF8E9" stroke="#B4802A" stroke-width="1.8"/>
+<text x="625" y="1045" font-family="'SF Mono',Menlo,Consolas" font-size="13" fill="#B4802A" text-anchor="middle">BLOCK</text>
+
+<rect x="1000" y="937" width="170" height="46" rx="10" fill="#C96442" stroke="#C96442" stroke-width="2.5"/>
+<text x="1085" y="966" font-family="'SF Mono',Menlo,Consolas" font-size="15" font-weight="700" fill="#FFFFFF" text-anchor="middle">publisher</text>
+<path d="M880,948 L992,948" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<rect x="900" y="922" width="66" height="26" rx="8" fill="#FFF8E9" stroke="#B4802A" stroke-width="1.8"/>
+<text x="933" y="940" font-family="'SF Mono',Menlo,Consolas" font-size="13" fill="#B4802A" text-anchor="middle">PASS</text>
+
+<rect x="1000" y="1030" width="170" height="46" rx="10" fill="#F3F1EE" stroke="#B9AFA2" stroke-width="2.5"/>
+<text x="1085" y="1059" font-family="'SF Mono',Menlo,Consolas" font-size="14" font-weight="700" fill="#8B7E70" text-anchor="middle">rejected</text>
+<path d="M850,990 L850,1053 L992,1053" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<rect x="874" y="1027" width="66" height="26" rx="8" fill="#FFF8E9" stroke="#B4802A" stroke-width="1.8"/>
+<text x="907" y="1045" font-family="'SF Mono',Menlo,Consolas" font-size="13" fill="#B4802A" text-anchor="middle">FAIL</text>
+
+<!-- destinations -->
+<rect x="1250" y="905" width="270" height="50" rx="12" fill="#EFF4EC" stroke="#6E9A68" stroke-width="2.5"/>
+<text x="1385" y="936" font-family="-apple-system,Arial" font-size="16" font-weight="600" fill="#2B2320" text-anchor="middle">your wall · the Channel tab</text>
+<rect x="1250" y="970" width="270" height="50" rx="12" fill="#EFF4EC" stroke="#6E9A68" stroke-width="2.5"/>
+<text x="1385" y="994" font-family="-apple-system,Arial" font-size="16" font-weight="600" fill="#2B2320" text-anchor="middle">the room's VibeTube</text>
+<text x="1385" y="1012" font-family="-apple-system,Arial" font-size="13" fill="#8B7E70" text-anchor="middle">silent — if Setup joined a room</text>
+<path d="M1170,950 L1242,930" fill="none" stroke="#6E9A68" stroke-width="3" marker-end="url(#a)"/>
+<path d="M1170,970 L1242,993" fill="none" stroke="#6E9A68" stroke-width="3" marker-end="url(#a)"/>
+
+<text x="70" y="1160" font-family="-apple-system,Arial" font-size="17" fill="#8B7E70">the graph pauses for PEOPLE · the world holds the machine waits · the gates stand in front of the one side effect</text>
+</svg>

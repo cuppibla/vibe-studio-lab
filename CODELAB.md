@@ -594,15 +594,18 @@ Duration: 0:11:00
 
 ### The production line you are about to grow
 
-![The workflow — the graph the stages grow toward](codelab-img/d1-workflow.png)
+![The production line — a graph for research, the world for renders, a second graph for shipping](codelab-img/d10-productionline.png)
 
-👀 Study it for ten seconds, no more. Research fans out → one join → a
-topic desk → **a pause that waits for you** → a script. Two things are NOT
-in this picture, on purpose: the renders (machine waits live with the desk
-from ⏳, outside any graph) and the publish gates (a second, smaller
-workflow — you will put them on a test bench in the next chapter, and watch
-them guard your real publish after that). The stages below grow this
-picture left to right.
+👀 Study the three bands for ten seconds, no more. **Top band** — the lap
+graph: research fans out → one join → a topic desk → *a pause that waits
+for you* → a script. That band is what the stages below grow, and its edge
+list is the one you will write at the EDGES hole. **Middle band** —
+deliberately NOT a graph: the renders wait with the desk from ⏳ in a
+plain session, and you approve the thumbnail there, because a resumed
+graph re-runs its nodes and a render must not submit twice. **Bottom
+band** — a second, smaller workflow: the publish gates. You will put its
+decision core on a test bench in the next chapter, and watch it guard
+your real publish after that.
 
 ### The whole channel as one prompt
 
