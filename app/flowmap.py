@@ -44,12 +44,13 @@ SUB = {
     "propose_directions": "3 candidates, into state",
     "direction_gate": "you pick — the form",
     "persist_direction": "user:prefs",
-    "policy_check": "reads policy_words.txt",
+    "policy_check": "OK or BLOCK — a router",
     "quarantine": "the polite stop",
     "scripter": "3 shots, quietly",
     "store_script": "the ledger",
 }
 HUMAN = {"direction_gate"}         # the node that pauses FOR you
+ROUTER = {"policy_check"}          # the node whose EDGES carry the decision
 
 CELL_W, CELL_H, PAD = 168, 76, 26
 BOX_W, BOX_H = 146, 50
@@ -57,29 +58,32 @@ INK, SUBC, LINE = "#2B2320", "#8B7E70", "#D9CFC0"
 DONE, NOW, HUMANC = "#C96442", "#E9B44C", "#E9B44C"
 
 
-def graph_edges() -> list[tuple[str, str]]:
-    """The real thing, or a readable fallback if a hole is still open."""
+def graph_edges() -> list[tuple[str, str, str | None]]:
+    """The real thing (with each edge's ROUTE label), or a readable fallback
+    if a hole is still open. The route is what makes a router a router."""
     try:
         from agent.graph import wf
-        return [(e.from_node.name, e.to_node.name) for e in wf.graph.edges]
+        return [(e.from_node.name, e.to_node.name, getattr(e, "route", None))
+                for e in wf.graph.edges]
     except Exception:
         readers = ["scan_trends", "read_backcatalog"]
-        return [("__START__", n) for n in readers] + [
-            (n, "join_research") for n in readers] + [
-            ("join_research", "compose_bundle"),
-            ("compose_bundle", "propose_directions"),
-            ("propose_directions", "direction_gate"),
-            ("direction_gate", "persist_direction"),
-            ("persist_direction", "policy_check"),
-            ("policy_check", "scripter"), ("policy_check", "quarantine"),
-            ("scripter", "store_script")]
+        return [("__START__", n, None) for n in readers] + [
+            (n, "join_research", None) for n in readers] + [
+            ("join_research", "compose_bundle", None),
+            ("compose_bundle", "propose_directions", None),
+            ("propose_directions", "direction_gate", None),
+            ("direction_gate", "persist_direction", None),
+            ("persist_direction", "policy_check", None),
+            ("policy_check", "scripter", "OK"),
+            ("policy_check", "quarantine", "BLOCK"),
+            ("scripter", "store_script", None)]
 
 
 def wired_nodes() -> set:
     """Only nodes that actually appear in an edge exist on the map - an
     unwired feed simply is not drawn yet, so the map GROWS when you add it."""
     ns = {"__START__"}
-    for a, b in graph_edges():
+    for a, b, _ in graph_edges():
         ns.add(a); ns.add(b)
     return ns
 
@@ -138,7 +142,7 @@ def render(st: dict, phase: str, avatar_url: str) -> str:
     parts = [f'<svg viewBox="0 0 {width:.0f} {height:.0f}" width="100%" '
              f'style="max-width:{width:.0f}px;display:block;margin:0 auto">']
 
-    for a, b in edges:                                   # edges first, under the boxes
+    for a, b, route in edges:                            # edges first, under the boxes
         if a not in LAYOUT or b not in LAYOUT:
             continue
         (x1, y1), (x2, y2) = _xy(a), _xy(b)
@@ -149,6 +153,15 @@ def render(st: dict, phase: str, avatar_url: str) -> str:
         parts.append(f'<path d="M{x1:.0f},{y1:.0f} C{mid:.0f},{y1:.0f} {mid:.0f},{y2:.0f} '
                      f'{x2:.0f},{y2:.0f}" fill="none" stroke="{DONE if lit else LINE}" '
                      f'stroke-width="{2.5 if lit else 2}"/>')
+        if route:                                        # a ROUTE - the edge is a decision
+            ry = (y1 + y2) / 2
+            col = DONE if lit else HUMANC
+            parts.append(
+                f'<rect x="{mid - 24:.0f}" y="{ry - 10:.0f}" width="48" height="19" '
+                f'rx="7" fill="#FFF8E9" stroke="{col}" stroke-width="1.5"/>'
+                f'<text x="{mid:.0f}" y="{ry + 3.5:.0f}" text-anchor="middle" '
+                f'font-size="10.5" font-family="SF Mono,Menlo,monospace" '
+                f'fill="{col}">{route}</text>')
 
     live = wired_nodes()
     for node, kind in states.items():
@@ -165,6 +178,8 @@ def render(st: dict, phase: str, avatar_url: str) -> str:
             continue
         x, y = cx - BOX_W / 2, cy - BOX_H / 2
         fill, stroke, txt = "#fff", LINE, SUBC
+        if node in ROUTER:                    # a router: amber, like the pause
+            fill, stroke, txt = "#FFF8E9", HUMANC, INK
         if kind == "done":
             fill, stroke, txt = "#FDF3EC", DONE, INK
         elif kind == "now":
@@ -177,9 +192,12 @@ def render(st: dict, phase: str, avatar_url: str) -> str:
         badge = (f'<text x="{x + BOX_W - 8:.0f}" y="{y + 13:.0f}" text-anchor="end" '
                  f'font-size="8.5" font-family="SF Mono,Menlo,monospace" '
                  f'fill="#B4802A">YOU</text>') if kind == "you" else ""
+        rhomb = (f'<path d="M{x - 10:.0f},{cy:.0f} L{x:.0f},{cy - 10:.0f} '
+                 f'L{x + 10:.0f},{cy:.0f} L{x:.0f},{cy + 10:.0f} Z" '
+                 f'fill="{stroke}"/>') if node in ROUTER else ""
         parts.append(
             f'{halo}<rect x="{x:.0f}" y="{y:.0f}" width="{BOX_W}" height="{BOX_H}" rx="11" '
-            f'fill="{fill}" stroke="{stroke}" stroke-width="2"/>{badge}'
+            f'fill="{fill}" stroke="{stroke}" stroke-width="2"/>{rhomb}{badge}'
             f'<text x="{cx:.0f}" y="{y + 22:.0f}" text-anchor="middle" font-size="12.5" '
             f'font-family="SF Mono,Menlo,monospace" fill="{txt}">{node}</text>'
             f'<text x="{cx:.0f}" y="{y + 37:.0f}" text-anchor="middle" font-size="10" '
@@ -195,7 +213,7 @@ def render(st: dict, phase: str, avatar_url: str) -> str:
         f'width="30" height="30" clip-path="url(#me)"/>')
     parts.append("</svg>")
 
-    missing = [n for pair in edges for n in pair if n not in LAYOUT]
+    missing = [n for a, b, _ in edges for n in (a, b) if n not in LAYOUT]
     tray = (f'<div class="h0s" style="margin-top:6px">unplaced nodes: '
             f'{", ".join(sorted(set(missing)))}</div>' if missing else "")
     return (f'<div class="flow">{"".join(parts)}{tray}</div>')

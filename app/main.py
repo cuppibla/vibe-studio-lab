@@ -293,8 +293,7 @@ def suggest_topic() -> str:
     across every session, so the next visit can open with a suggestion."""
     try:
         prefs = drive.run(drive.ensure_user_state("_ui_probe")).get("user:prefs") or {}
-        last = prefs.get("last_direction", "")
-        return f"something like: {last}" if last else ""
+        return prefs.get("last_direction", "")
     except Exception:
         return ""
 
@@ -333,9 +332,8 @@ def now_body() -> str:
         chip = ""
         sug = suggest_topic()
         if sug:
-            chip = (f'<div class="h0s" style="margin-bottom:8px">like last time? '
-                    f'<a href="#" onclick="document.querySelector(\'[name=hint]\').value='
-                    f'\'{sug}\';return false" class="mchip">{sug}</a></div>')
+            chip = (f'<div class="h0s" style="margin-bottom:8px">the channel remembers '
+                    f'your taste — <span class="mchip">something like: {sug}</span></div>')
         return busy_html + f"""
 <div class="hero"><img src="/static/art/hero-studio.png"></div>
 <div class="card" style="margin-top:22px">
@@ -365,7 +363,11 @@ def now_body() -> str:
 <form method="post" action="/ui/learn" style="margin-left:auto"><div style="text-align:right">
 <button class="go">Learn from the audience ▸</button><br>
 <span style="font-size:12.5px;color:var(--sub)">python -m agent.learn, as a button</span></div></form>
-<form method="post" action="/ui/run"><button class="go">Start next lap ▸</button></form></div></div>"""
+<form method="post" action="/ui/run"><div style="text-align:right">
+<input type="text" name="hint" value="{suggest_topic()}" style="min-width:280px">
+<button class="go">Start next lap ▸</button><br>
+<span style="font-size:12.5px;color:var(--sub)">pre-filled from <b>user:prefs</b> — the studio opens with your taste</span>
+</div></form></div></div>"""
 
     # thumb approval?
     pend_thumb = drive.run(drive.pending(f"{st['run_id']}_thumb"))

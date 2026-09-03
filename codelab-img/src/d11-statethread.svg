@@ -1,0 +1,69 @@
+<svg width="1600" height="820" viewBox="0 0 1600 820" xmlns="http://www.w3.org/2000/svg">
+<defs>
+ <marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C9BCA9"/></marker>
+ <marker id="aT" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C96442"/></marker>
+</defs>
+<rect width="1600" height="820" fill="#FAF6F0"/>
+
+<text x="70" y="72" font-family="-apple-system,'SF Pro Text','Helvetica Neue',Arial" font-size="42" font-weight="800" fill="#2B2320">One topic, four identities</text>
+<text x="70" y="110" font-family="-apple-system,'SF Pro Text','Helvetica Neue',Arial" font-size="22" fill="#8B7E70">nodes never pass parameters to each other — they leave things in ONE shared state, and pick things up from it</text>
+
+<!-- the state bar -->
+<rect x="70" y="330" width="1460" height="120" rx="18" fill="#FFF8E9" stroke="#B4802A" stroke-width="3"/>
+<text x="96" y="366" font-family="'SF Mono',Menlo,Consolas" font-size="17" font-weight="700" fill="#2B2320">the run's shared state — one dict, every node sees it</text>
+
+<!-- keys inside the bar -->
+<g font-family="'SF Mono',Menlo,Consolas" font-size="15" font-weight="700" fill="#2B2320">
+ <rect x="120" y="386" width="180" height="42" rx="10" fill="#FFFFFF" stroke="#B4802A" stroke-width="2"/><text x="210" y="412" text-anchor="middle">hint</text>
+ <rect x="430" y="386" width="200" height="42" rx="10" fill="#FFFFFF" stroke="#B4802A" stroke-width="2"/><text x="530" y="412" text-anchor="middle">candidates</text>
+ <rect x="760" y="386" width="190" height="42" rx="10" fill="#FFFFFF" stroke="#B4802A" stroke-width="2"/><text x="855" y="412" text-anchor="middle">direction</text>
+ <rect x="1080" y="386" width="190" height="42" rx="10" fill="#FFFFFF" stroke="#B4802A" stroke-width="2"/><text x="1175" y="412" text-anchor="middle">script_title</text>
+ <rect x="1330" y="386" width="170" height="42" rx="10" fill="#EFF4EC" stroke="#6E9A68" stroke-width="2"/><text x="1415" y="412" text-anchor="middle" font-size="14">user:prefs</text>
+</g>
+
+<!-- writers (above) -->
+<g font-family="'SF Mono',Menlo,Consolas" font-size="14" font-weight="700" fill="#2B2320">
+ <rect x="120" y="190" width="180" height="52" rx="12" fill="#FFFFFF" stroke="#E8DFD2" stroke-width="2.5"/><text x="210" y="213" text-anchor="middle">you</text>
+ <text x="210" y="231" text-anchor="middle" font-family="-apple-system,Arial" font-size="12" fill="#8B7E70">an idea, or nothing</text>
+ <rect x="420" y="190" width="220" height="52" rx="12" fill="#8B7EC8" stroke="#8B7EC8" stroke-width="2.5"/><text x="530" y="213" text-anchor="middle" fill="#FFFFFF">✦ propose_directions</text>
+ <text x="530" y="231" text-anchor="middle" font-family="-apple-system,Arial" font-size="12" fill="#EDE7FA">writes 3 candidates</text>
+ <rect x="750" y="190" width="210" height="52" rx="12" fill="#FFFFFF" stroke="#E8DFD2" stroke-width="2.5"/><text x="855" y="213" text-anchor="middle">persist_direction</text>
+ <text x="855" y="231" text-anchor="middle" font-family="-apple-system,Arial" font-size="12" fill="#8B7E70">writes YOUR pick</text>
+ <rect x="1075" y="190" width="200" height="52" rx="12" fill="#FFFFFF" stroke="#E8DFD2" stroke-width="2.5"/><text x="1175" y="213" text-anchor="middle">store_script</text>
+ <text x="1175" y="231" text-anchor="middle" font-family="-apple-system,Arial" font-size="12" fill="#8B7E70">writes the title</text>
+</g>
+<text x="70" y="176" font-family="-apple-system,Arial" font-size="16" font-weight="700" fill="#8B7E70">WRITES ↓</text>
+<path d="M210,244 L210,380" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<path d="M530,244 L530,380" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<path d="M855,244 L855,380" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<path d="M1175,244 L1175,380" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<path d="M900,244 C1000,280 1330,300 1400,380" fill="none" stroke="#6E9A68" stroke-width="2.5" marker-end="url(#a)"/>
+
+<!-- readers (below) -->
+<text x="70" y="514" font-family="-apple-system,Arial" font-size="16" font-weight="700" fill="#8B7E70">READS ↑</text>
+<g font-family="'SF Mono',Menlo,Consolas" font-size="14" font-weight="700" fill="#2B2320">
+ <rect x="120" y="530" width="230" height="56" rx="12" fill="#EFF4EC" stroke="#6E9A68" stroke-width="2.5"/><text x="235" y="553" text-anchor="middle">the readers</text>
+ <text x="235" y="572" text-anchor="middle" font-family="-apple-system,Arial" font-size="12" fill="#8B7E70">research around your idea</text>
+ <rect x="420" y="530" width="220" height="56" rx="12" fill="#FFF8E9" stroke="#B4802A" stroke-width="3"/><text x="530" y="553" text-anchor="middle">⏸ direction_gate</text>
+ <text x="530" y="572" text-anchor="middle" font-family="-apple-system,Arial" font-size="12" fill="#8B7E70">renders them as YOUR form</text>
+ <rect x="750" y="530" width="210" height="56" rx="12" fill="#FFF8E9" stroke="#B4802A" stroke-width="3"/><text x="855" y="553" text-anchor="middle">policy_check ◇</text>
+ <text x="855" y="572" text-anchor="middle" font-family="-apple-system,Arial" font-size="12" fill="#8B7E70">routes OK / BLOCK on it</text>
+ <rect x="1075" y="530" width="200" height="56" rx="12" fill="#8B7EC8" stroke="#8B7EC8" stroke-width="2.5"/><text x="1175" y="553" text-anchor="middle" fill="#FFFFFF">✦ scripter</text>
+ <text x="1175" y="572" text-anchor="middle" font-family="-apple-system,Arial" font-size="12" fill="#EDE7FA">writes shots for it</text>
+ <rect x="1330" y="530" width="200" height="56" rx="12" fill="#EFF4EC" stroke="#6E9A68" stroke-width="2.5"/><text x="1430" y="553" text-anchor="middle" font-size="13">the NEXT lap</text>
+ <text x="1430" y="572" text-anchor="middle" font-family="-apple-system,Arial" font-size="12" fill="#8B7E70">the idea box, pre-filled</text>
+</g>
+<path d="M235,528 L215,458" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<path d="M530,528 L530,458" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<path d="M855,528 L855,458" fill="none" stroke="#C96442" stroke-width="3" marker-end="url(#aT)"/>
+<path d="M1175,528 L1175,458" fill="none" stroke="#C9BCA9" stroke-width="2.5" marker-end="url(#a)"/>
+<path d="M1430,528 L1420,458" fill="none" stroke="#6E9A68" stroke-width="2.5" marker-end="url(#a)"/>
+
+<!-- the punchline -->
+<rect x="640" y="626" width="430" height="60" rx="14" fill="#FBEEE8" stroke="#C96442" stroke-width="2.5"/>
+<text x="855" y="652" text-anchor="middle" font-family="'SF Mono',Menlo,Consolas" font-size="15" font-weight="700" fill="#C96442">state drives the router</text>
+<text x="855" y="672" text-anchor="middle" font-family="-apple-system,Arial" font-size="13.5" fill="#8B7E70">the route is decided by a value you put there</text>
+
+<text x="70" y="748" font-family="-apple-system,Arial" font-size="17" fill="#8B7E70">nobody passed <tspan font-family="'SF Mono',Menlo,Consolas" fill="#2B2320">candidates</tspan> into persist_direction — a node's parameters BIND FROM STATE by name (parameter_binding='state')</text>
+<text x="70" y="778" font-family="-apple-system,Arial" font-size="17" fill="#8B7E70">and one key wears a prefix: <tspan font-family="'SF Mono',Menlo,Consolas" fill="#2B2320">user:prefs</tspan> outlives this run, which is why tomorrow's studio already knows your taste</text>
+</svg>

@@ -11,6 +11,7 @@ dependencies = [
     "google-cloud-bigquery>=3.25",
     "greenlet>=3.5.5",
     "google-cloud-aiplatform>=1.163.0",
+    "pillow>=10.0",
 ]
 
 [tool.setuptools]

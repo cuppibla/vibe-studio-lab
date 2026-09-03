@@ -269,11 +269,14 @@ words:
 |---|---|---|
 | **ANCHOR** | you | *"The scene is: a tiny robot doing laundry at midnight"* |
 | **STYLE-LOCK** | the studio | low-poly facets · the cream/terracotta/sage palette · soft daylight |
-| **CONSTRAINTS** | the studio | 16:9, one comic decisive moment, no text, no logos |
+| **CONSTRAINTS** | the studio | 16:9, one comic decisive moment, **no text** |
+| **THE TITLE BAND** | the studio, afterwards | your words, laid on the art in the house font |
 
 Everyone in the room types something different and everyone gets the same
-house style — that is what a style-lock is for. (You will read the code in
-the next chapter.)
+house style — that is what a style-lock is for. And notice the last row:
+the studio asks the model for art with **no text**, then draws the title
+on top itself. Image models garble long words; a thumbnail needs them
+crisp. Art from the model, words from code.
 
 *You should see* one tool call, the word **WAITING** — and then nothing. No
 spinner, no progress bar. The turn is over:
@@ -292,17 +295,8 @@ and then returned instantly. The agent has nothing left to do; the
 invocation ended honestly; your thumbnail is being drawn anyway.
 
 👀 One more thing to notice for later: under that call sits a small box,
-**"Enter your response…"**. Leave it alone for now — you will type into it
-in a minute, and what you type will be a *decision*.
-
-👉🔬 Ask the obvious thing — type exactly this:
-
-```
-is it done yet?
-```
-
-*You should see* **WAITING** again. Talking to the agent does not finish the
-drawing — text never resumes a wait.
+**"Enter your response…"** — that is where this wait will END, and what you
+type into it will be a *decision*. Leave it alone for one more minute.
 
 ### Kill it
 
@@ -335,7 +329,14 @@ cloudshell edit ~/vibe-studio-lab/app/static/thumbs/drafts
 
 *Our run typed "a tiny robot doing laundry at midnight":*
 
-![The draft, on disk — drawn while no agent process existed](codelab-img/s1-thumb-draft.png)
+![The draft, on disk — art from the model, the title band from code](codelab-img/s1-thumb-draft.png)
+
+👀 That is a real thumbnail: the scene came from the image model, and the
+title band underneath was drawn by `title_band()` in
+`world/thumbstudio.py` after the art landed. (The clean art is kept too —
+`<job>.png` beside `<job>_titled.png` — because the next chapter sends the
+UNBANDED master back to the model, and asking it to re-draw burnt-in text
+would be asking for garble.)
 
 👉🔬 Like it? Then say so where it counts. Under the pending `thumb_submit`
 call sits that small input, **"Enter your response…"** — ADK's built-in
@@ -727,19 +728,39 @@ Agent as a node — one call, no conversation, THREE typed candidates out),
 `direction_gate` — **the human door** — and `persist_direction`, which
 resolves your pick.
 
-👀 Before you run it, the state thread this act keeps pointing at — watch
-one idea travel the graph as SHARED STATE:
+### One topic, four identities — the shared state
 
-| moment | state key | written by | read by |
-|---|---|---|---|
-| you press send | (the message) | you | the readers' prompts |
-| research lands | — | the readers | the join, the composer |
-| proposals made | `candidates` | `propose_directions` → `direction_gate` | the form you are about to see |
-| you pick | `direction` | `persist_direction` | the policy gate, next stage |
+👀 Before you run it, look at the thing this whole act is really about.
+Your one idea crosses the graph as SHARED STATE, changing identity at
+every step — and no node ever passes it to the next:
 
-Nodes do not call each other and do not pass parameters down a chain —
-they leave things in state and pick things up from state. `candidates` is
-about to be written in front of you.
+![One topic, four identities — writes above, the shared state, reads below](codelab-img/d11-statethread.png)
+
+👀 What the picture shows: the amber bar is ONE dict that every node in
+the run can see. Above it, who WRITES each key; below it, who READS it.
+Follow the middle column: `persist_direction` writes `direction`, and the
+red arrow is the punchline of the next stage — **the router's decision is
+driven by a value you put in state.**
+
+👉📖 Two lines of real code say it better than any prose. In
+`agent/graph.py`, `direction_gate` WRITES:
+
+```python
+    cands = [c.model_dump() for c in node_input.candidates]
+    yield Event(state={"candidates": cands})
+```
+
+and `persist_direction` READS — look at its signature, then at who calls it:
+
+```python
+def persist_direction(node_input, candidates: list = [], constraints: str = ""):
+```
+
+**Nobody passes `candidates` in.** ADK binds a node's parameters from the
+run's state BY NAME (`parameter_binding='state'`); `node_input` is the one
+exception — it always holds what the previous node returned, which here is
+your form answer. That is the whole contract: write with
+`Event(state={...})`, read by declaring a parameter with the same name.
 
 👉🔬 Switch the dropdown to **`stage2_direction`** and send the same idea
 again:
@@ -875,8 +896,14 @@ it. No restart, no redeploy.
 
 👉🔬 Switch the dropdown to **`stage3_router`**, send the same idea, and
 when the form arrives pick `1` and **Submit**. *You should see*
-`route: OK` on the policy node's event — your direction cleared the gate,
-and the run rolls on to a quiet script.
+`route: OK` on the policy node's event — and in adk web's graph panel,
+`policy_check` is drawn as a **diamond** with two labelled exits, the
+OK edge lit and `quarantine` greyed out. A router looks different from a
+step because it IS different: one node in, two ways out.
+
+👀 The same shape shows up in Vibe Studio's live map later — the policy
+node wears an amber diamond and its edges carry **OK** and **BLOCK**
+chips, so you can read the decision off the picture while a lap runs.
 
 **Now make the policy yours.**
 
@@ -1438,19 +1465,32 @@ keys wearing it are scoped to the user across ALL sessions. `direction`
 dies with this run; `user:prefs` is yours forever. Same database, one
 word, one lifetime longer. (`temp:` goes the other way: never persisted.)
 
-### Watch it come back — the studio speaks first
+### Watch it come back — the studio opens with your taste
 
-👉🌐 Reload the app's browser tab. The idle card is not blank anymore:
-above the idea box sits a small chip — **like last time?** — carrying a
-suggestion shaped like your last direction:
+👉🌐 Go back to the app's **Now** tab, on the published card from your
+first video. Look at what sits next to **Start next lap ▸**: an idea box
+that is **already filled in** — with a topic shaped like the direction you
+picked last time:
 
-![The second visit — the studio greets you with a suggestion from user:prefs](codelab-img/s3-suggest-chip.png)
+![The next lap, pre-filled from user:prefs — the studio remembers your taste](codelab-img/s3-suggest-chip.png)
 
-👀 No lap is running; no session of yours is open. The app simply read
-`user:prefs` from the store before anything else existed — that is what
-"outlives the session" means, made visible on a welcome screen.
+👀 Nothing suggested that during the lap. The app called one helper —
+`suggest_topic()` in `app/main.py` — which reads `user:prefs` from the
+SessionService directly:
 
-👉🌐 Click the chip (it fills the idea box), press **Start a lap ▸**, and
+```python
+    prefs = drive.run(drive.ensure_user_state("_ui_probe")).get("user:prefs") or {}
+    return prefs.get("last_direction", "")
+```
+
+Read the session id it probes with: `_ui_probe` — **a session that has
+nothing to do with your lap.** `user:` keys are not attached to a
+conversation; they belong to the user, so a brand-new session can read
+them. That is the whole prefix, demonstrated: the studio greets you with
+your own taste before any run exists. (Kill the app, reopen it, and the
+box is still filled — try it.)
+
+👉🌐 Press **Start next lap ▸** (keep the suggestion or type over it) and
 run your channel's second video the way you now know: pick a direction,
 approve the thumbnail. Two clicks of judgment, everything else automatic.
 
