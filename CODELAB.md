@@ -2095,7 +2095,9 @@ opening on the conclusion the audience taught it). **The graph never
 changed except for the two edges you added — one edge list, three videos, each better,
 because each lap woke up knowing more.** And if Setup joined a room, the
 room watched your channel grow too — every Finish premiered there,
-silently.
+silently:
+
+![The room's VibeTube — three premieres from three laps, no step asked for any of them](codelab-img/s5-room-3.png)
 
 *What you learned:* connect is a resource name, write is one `generate`
 call, read is one EDGE — and only the read made durable state change the
