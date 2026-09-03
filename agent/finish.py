@@ -23,7 +23,7 @@ def main():
         st["lineage"]["approvals"].append({"kind": "thumb", "at": time.time()})
         state.save(st)
 
-    while time.time() - t0 < config.DEADLINE_S + 25:
+    while time.time() - t0 < broker.deadline_s() + 25:
         st = state.load()
         jobs = {j["id"]: j for j in broker.poll()}
 
@@ -38,7 +38,7 @@ def main():
             st = state.load()
 
         waited = time.time() - state.load().get("render_started_at", t0)
-        if waited > config.DEADLINE_S:
+        if waited > broker.deadline_s():   # a degraded farm is on the 2s clock, not Veo's 420s
             for cid, name, resp in drive.run(drive.pending(sid)):
                 job = jobs.get(resp.get("job_id"))
                 if job and job["status"] == "queued":
@@ -46,7 +46,9 @@ def main():
 
         if joinlogic.try_finish() is not None:
             return
-        time.sleep(3.0 if config.REAL_VIDEO else 1.0)   # Veo operations are polled, not hammered
+        # Veo operations are polled, not hammered - but a degraded farm is a
+        # local clock, so stop pacing for a model we are no longer calling.
+        time.sleep(3.0 if config.REAL_VIDEO and not broker.degraded() else 1.0)
 
     # The window closed with results still out (a late retake, a slow farm).
     # A worker must never leave a lap hanging: every wait still open gets the

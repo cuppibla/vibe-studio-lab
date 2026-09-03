@@ -1,0 +1,359 @@
+"""The lap, as a list of stages - read from what the run actually wrote.
+
+Same two rules as the workflow map next door (app/flowmap.py), because a
+learner should be able to trust both pictures the same way:
+
+  1 · The vocabulary is not invented here. Every stage below is a step the
+      lab already names somewhere else - a `lap.where()` phase, a worker verb
+      (`agent.run` / `agent.render` / `agent.finish`), a graph node, or a key
+      the run writes into `runs/state.json`. The labels are the codelab's own
+      words so the list reads like the chapter the student is standing in.
+
+  2 · Every status is DERIVED from a durable artifact - runs/state.json,
+      runs/broker.json, runs/<verb>_run.log, runs/ui_last.json. Nothing is
+      recorded twice and nothing is remembered in the process, so the list
+      says the same true thing after you kill the server and reload. That is
+      the whole thesis of this lab: the process may die, the state may not.
+
+The three things a learner most needs to see - a stage that FAILED, a Veo
+retry, and a run that degraded to the prebaked clock - are read straight from
+the artifacts the existing fixes already write. `failed_card()` and
+`farm_note()` in app/main.py still render the detail; this list is the map
+that says WHICH stage they belong to.
+"""
+from __future__ import annotations
+
+import html
+import json
+
+from agent import config as _config
+
+# ── the vocabulary ───────────────────────────────────────────────────────────
+# key · label · the one-line gloss, in the codelab's voice
+STAGES = [
+    ("research",  "Research fans out",        "four feeds, joined into one cited bundle"),
+    ("direction", "You pick the direction",   "the form — the run suspends on you"),
+    ("policy",    "The policy gate",          "OK or BLOCK, before any money is spent"),
+    ("script",    "The script",               "3 shots, written quietly"),
+    ("render",    "The render farm",          "one Veo shot per row, plus your thumbnail"),
+    ("thumb",     "You approve the thumbnail","the human wait"),
+    ("join",      "The join",                 "every render delivered, and you"),
+    ("publish",   "The wall",                 "eval backstop, then the side effect"),
+    ("room",      "The VibeTube premiere",    "the room's wall, if Setup joined one"),
+]
+
+# Which worker verb drives which stage - used to blame the right row when a
+# worker exits non-zero. `auto` covers several buttons, so it is resolved
+# against the lap's own position (see _blame).
+VERB_STAGE = {
+    "run": "research",
+    "render": "render",
+    "finish": "join",
+    "auto": None,          # direction / ship / rethumb - decided by position
+}
+
+PASS, NOW, FAIL, RETRY, DEGRADED, BLOCKED, SKIP, IDLE, STALL, WAIT = (
+    "pass", "now", "fail", "retry", "degraded", "blocked", "skip", "idle",
+    "stall", "wait")
+# NOW means a WORKER is executing; WAIT means the lap is suspended on the
+# human. The difference matters after a restart: a killed worker leaves
+# nothing running, but a human wait is a durable row and is still genuinely
+# open - which is the lesson the lab is here to teach. `⏸` is the mark
+# agent/lap.py print_where() and agent/render.py already use for it.
+
+
+# ── the artifacts ────────────────────────────────────────────────────────────
+
+def _broker() -> dict:
+    """runs/broker.json - the farm's own record, shared by every worker."""
+    try:
+        return json.loads(_config.BROKER.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def _last() -> dict:
+    """runs/ui_last.json - {verb, code}, written when busy() reaps a worker."""
+    try:
+        return json.loads((_config.RUNS / "ui_last.json").read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def log_tail(verb: str, n: int = 6) -> list[str]:
+    """The last n non-blank lines of runs/<verb>_run.log.
+
+    One implementation, two readers: app/main.py `failed_card()` renders the
+    full tail in its card, and the stage row shows the last line as the
+    reason. Keeping it here means the two can never disagree.
+    """
+    log = _config.RUNS / f"{verb}_run.log"
+    try:
+        return [l for l in log.read_text(errors="replace").splitlines() if l.strip()][-n:]
+    except OSError:
+        return []
+
+
+def farm_lines(verbs=("render", "finish")) -> list[str]:
+    """The farm's own `[farm] …` chatter, from the worker logs it is printed to.
+
+    world/broker.py prints its retry and failover story here and nowhere else,
+    so this is where a retry that is happening RIGHT NOW is visible - before
+    it has resolved into a broker.json field.
+    """
+    out = []
+    for v in verbs:
+        out += [l for l in log_tail(v, 400) if "[farm]" in l]
+    return out
+
+
+def veo_retry(bk: dict) -> str:
+    """Is a Veo call mid-retry, or did one just happen? Two durable traces:
+
+      · broker.json job['op_errors'] == 1 - a poll failed once and the run has
+        exactly one retry left. This is a field, so it survives a restart.
+      · the `[farm] veo submit attempt 1/2 failed` line in the worker log -
+        the submit retry is over in about a second, too fast to leave a field,
+        but the line stays on disk.
+
+    Returns (in_flight, sentence). `in_flight` is True only while a retry is
+    genuinely outstanding - a retry that already RECOVERED is history worth
+    printing, not a reason to keep the row spinning.
+    """
+    for j in bk.get("jobs", []):
+        if j.get("real") and j.get("op_errors") == 1 and j.get("status") == "queued":
+            return True, f"Veo failed on {j.get('id', 'a shot')}, retrying (1 of 1)"
+    for l in reversed(farm_lines()):
+        if "recovered on the retry" in l:
+            return False, "Veo failed once, recovered on the retry"
+        if "attempt 1/2 failed" in l:
+            return True, "Veo failed, retrying (1 of 1)"
+    return False, ""
+
+
+# ── deriving each stage's status ─────────────────────────────────────────────
+
+def _blame(st: dict, done: dict) -> tuple[str, str] | None:
+    """A worker exited non-zero - whose row is that?
+
+    ui_last.json names the verb; VERB_STAGE maps it to the stage it drives.
+    `auto` drives three different buttons, and a verb can also die after its
+    own stage already passed (finish, twice), so the blame falls on the first
+    stage that has NOT passed - which is exactly where the lap is stuck.
+    """
+    f = _last()
+    if not f.get("code"):
+        return None                       # exited 0, or never ran
+    verb = f.get("verb", "")
+    want = VERB_STAGE.get(verb, "__none__")
+    if want == "__none__":
+        return None                       # learn / bank / graph - not lap stages
+    if want and not done.get(want):
+        target = want
+    else:
+        target = next((k for k, _, _ in STAGES if not done.get(k)), None)
+    if not target:
+        return None
+    tail = log_tail(verb, 1)
+    why = tail[0] if tail else f"exited {f['code']}"
+    return target, f"python -m agent.{verb} exited {f['code']} · {why}"
+
+
+def stage_states(st: dict, phase: str, busy_verb: str | None,
+                 pend_thumb: bool = False) -> list[dict]:
+    """The whole list: one dict per stage, every field read from an artifact.
+
+    `st` is runs/state.json, `phase` is `lap.where()['phase']`, `busy_verb` is
+    whatever `busy()` in app/main.py just returned (it reaps, so only it may
+    decide that something is actually alive). Nothing else is consulted.
+    """
+    bk = _broker()
+    dg = bk.get("degraded")
+    lin = st.get("lineage") or {}
+    gates = lin.get("gates") or {}
+    shots = st.get("shots") or []
+    room = st.get("room") or {}
+
+    # ── what has definitely happened, per the artifacts ──
+    approved = any(a.get("kind") == "thumb" for a in (lin.get("approvals") or []))
+    policy = gates.get("policy") or {}
+    ev = gates.get("eval") or {}
+    ev_failed = bool(ev) and not all((ev.get("checks") or {}).values())
+    delivered = [s for s in shots if s.get("status") in ("done", "fallback")]
+    all_delivered = bool(shots) and len(delivered) == len(shots)
+
+    done = {
+        "research":  bool(st.get("brief") or st.get("candidates")),
+        "direction": bool(st.get("direction")),
+        "policy":    bool(policy),
+        "script":    bool(st.get("script")),
+        "render":    bool(shots),
+        "thumb":     approved,
+        "join":      all_delivered and approved,
+        "publish":   bool(st.get("published")),
+        "room":      bool(room),
+    }
+    blame = _blame(st, done)
+
+    rows = []
+    for key, label, sub in STAGES:
+        status, note = IDLE, ""
+
+        # ── research ──
+        if key == "research":
+            if done["research"]:
+                status, note = PASS, f"{len(st.get('candidates') or [])} directions proposed"
+            elif st.get("run_id"):
+                status = NOW if (busy_verb == "run" or phase == "proposal") else STALL
+                note = "the four feeds are fanning out"
+
+        # ── direction ──
+        elif key == "direction":
+            if done["direction"]:
+                status, note = PASS, st.get("direction", "")
+            elif phase == "form":
+                status, note = WAIT, "the run is SUSPENDED on the form — a row, not a process"
+
+        # ── the policy gate ──
+        elif key == "policy":
+            if st.get("blocked"):
+                status = BLOCKED
+                note = "BLOCK — " + ", ".join(st["blocked"].get("hits") or [])
+            elif policy:
+                status = PASS if policy.get("ok") else BLOCKED
+                note = "OK" if policy.get("ok") else "BLOCK — " + ", ".join(policy.get("hits") or [])
+
+        # ── the script ──
+        elif key == "script":
+            if done["script"]:
+                status, note = PASS, (st.get("script") or {}).get("title", "")
+            elif done["policy"] and policy.get("ok"):
+                status, note = NOW, "3 shots, written quietly"
+
+        # ── the render farm ──
+        elif key == "render":
+            if shots:
+                n, tot = len(delivered), len(shots)
+                spinning, why = veo_retry(bk)
+                if dg:
+                    status = DEGRADED
+                    note = (f"{n}/{tot} delivered on the PREBAKED clock — "
+                            "stand-ins, not Veo output")
+                elif spinning:
+                    status, note = RETRY, why
+                elif all_delivered:
+                    # a retry that recovered is part of the story, not a state
+                    status = PASS
+                    note = f"{n}/{tot} shots delivered" + (f" · {why}" if why else "")
+                else:
+                    status = NOW if busy_verb in ("render", "finish") else STALL
+                    note = f"{n}/{tot} delivered" + (f" · {why}" if why else "")
+            elif done["script"]:
+                status = NOW if busy_verb == "render" else IDLE
+                note = "submitting the shots in ONE turn"
+
+        # ── your thumbnail ──
+        elif key == "thumb":
+            if approved:
+                status, note = PASS, "approved"
+            elif pend_thumb or st.get("thumb"):
+                status, note = WAIT, "approve it and the lap finishes itself"
+
+        # ── the join ──
+        elif key == "join":
+            retakes, late = len(lin.get("repair") or []), len(lin.get("deadline") or [])
+            extra = []
+            if retakes:
+                extra.append(f"{retakes} retake{'s' if retakes > 1 else ''} (qc FAIL → medic)")
+            if late:
+                extra.append(f"{late} deadline stand-in{'s' if late > 1 else ''}")
+            if done["join"]:
+                status = PASS
+                note = "renders complete + human approved" + (" · " + ", ".join(extra) if extra else "")
+            elif shots:
+                status = NOW if busy_verb == "finish" else (
+                    STALL if delivered else IDLE)
+                note = (f"{len(delivered)}/{len(shots)} in"
+                        + (" · " + ", ".join(extra) if extra else "")
+                        + ("" if approved else " · still waiting on the thumbnail"))
+
+        # ── the wall ──
+        elif key == "publish":
+            if st.get("published"):
+                status = PASS
+                note = str((st.get("published") or {}).get("video_id", ""))
+            elif ev_failed:
+                bad = [k for k, v in (ev.get("checks") or {}).items() if not v]
+                status, note = FAIL, "eval gate FAIL — " + ", ".join(bad)
+            elif done["join"]:
+                status, note = NOW, "editor → eval backstop → publish"
+
+        # ── the room ──
+        elif key == "room":
+            if room.get("url"):
+                status, note = PASS, "premiered to the room"
+            elif room.get("skipped") == "no room configured":
+                status, note = SKIP, "no room configured — self-paced, nothing depends on it"
+            elif room.get("skipped"):
+                status, note = FAIL, "premiere failed — " + str(room["skipped"])
+            elif st.get("published"):
+                status, note = NOW, "packaging the premiere cut"
+
+        # a dead worker overrides whatever the artifacts implied for its row
+        if blame and blame[0] == key and status in (NOW, IDLE, STALL):
+            status, note = FAIL, blame[1]
+
+        rows.append({"key": key, "label": label, "sub": sub,
+                     "status": status, "note": note})
+    return rows
+
+
+# ── the markup ───────────────────────────────────────────────────────────────
+
+MARK = {PASS: "✓", NOW: "●", FAIL: "✕", RETRY: "↻", DEGRADED: "▲",
+        BLOCKED: "⛔", SKIP: "–", IDLE: "○", STALL: "◍", WAIT: "⏸"}
+WORD = {PASS: "passed", NOW: "running", FAIL: "FAILED", RETRY: "retrying",
+        DEGRADED: "degraded", BLOCKED: "blocked", SKIP: "skipped", IDLE: "",
+        STALL: "stalled — no worker", WAIT: "waiting on you"}
+
+
+def render(st: dict, phase: str, busy_verb: str | None,
+           pend_thumb: bool = False) -> str:
+    """The card. Same grammar as every other card on the page: `card`, `h0`,
+    `h0s`, `mono` - and the stage classes added to CSS next to the flow strip.
+
+    Everything that came from a log, a title or the room is html-escaped: a
+    traceback and a video title are both going straight into a page.
+    """
+    rows = stage_states(st, phase, busy_verb, pend_thumb)
+    if not st.get("run_id"):
+        body = ('<div class="h0s" style="margin-top:10px">No lap yet — start one and '
+                'every stage below lights up from what the run writes to disk.</div>')
+    else:
+        body = ""
+    out = []
+    for r in rows:
+        word = WORD[r["status"]]
+        badge = (f'<span class="stw">{html.escape(word)}</span>' if word else "")
+        note = (f'<div class="stn mono">{html.escape(r["note"])}</div>'
+                if r["note"] else "")
+        out.append(
+            f'<div class="stg {r["status"]}">'
+            f'<span class="stm">{MARK[r["status"]]}</span>'
+            f'<div class="stb"><div class="stl">{html.escape(r["label"])}{badge}</div>'
+            f'<div class="sts">{html.escape(r["sub"])}</div>{note}</div></div>')
+
+    room = st.get("room") or {}
+    link = ""
+    url = str(room.get("url") or "")
+    if url.startswith(("http://", "https://")):
+        link = (f'<div class="h0s" style="margin-top:12px">watch it with everyone else — '
+                f'<a class="stk" href="{html.escape(url, quote=True)}" target="_blank">'
+                f'{html.escape(url)} ↗</a></div>')
+
+    return f"""
+<div class="card" style="margin-bottom:18px">
+<div class="h0" style="font-size:19px">This lap, stage by stage.</div>
+<div class="h0s">every line below is read from what the run wrote to disk — kill the
+server and reload, and it still says the same thing</div>{body}
+<div class="stlist">{"".join(out)}</div>{link}</div>"""

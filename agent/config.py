@@ -45,4 +45,9 @@ DATASET = os.environ.get("STUDIO_DATASET", "vibestudio")
 # prebaked clock (STUDIO_REAL_VIDEO=0) for a no-cost run - the deadline
 # follows the farm unless you set it yourself
 REAL_VIDEO = os.environ.get("STUDIO_REAL_VIDEO", "1").lower() in ("1", "true")
-DEADLINE_S = float(os.environ.get("STUDIO_DEADLINE_S", "420" if REAL_VIDEO else "14"))
+_DEADLINE_ENV = os.environ.get("STUDIO_DEADLINE_S")
+DEADLINE_S = float(_DEADLINE_ENV or ("420" if REAL_VIDEO else "14"))
+# What a run degrades TO when Veo turns out to be unreachable. Veo's 420s window
+# is meaningless once we are on the prebaked clock - waiting it out would punish
+# the learner twice for one outage. broker.deadline_s() picks between the two.
+PREBAKED_DEADLINE_S = float(_DEADLINE_ENV or "14")
