@@ -5,7 +5,11 @@ creates that resource (or attaches to the one already cached), prints its
 full resource name, and shows the scope every note will be filed under.
 The name is cached in runs/memorybank.json - that file IS the connection.
 """
+import warnings
+
 from . import config, memory
+
+warnings.filterwarnings("ignore", category=FutureWarning)   # SDK rename notices are not the lesson
 
 
 def main():

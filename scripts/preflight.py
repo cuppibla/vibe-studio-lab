@@ -26,7 +26,7 @@ except ImportError:
     tick("greenlet (async sqlite)", False, "uv sync")
 
 from agent import config  # noqa: E402
-if os.environ.get("STUDIO_VERTEX"):
+if os.environ.get("STUDIO_VERTEX", "").lower() in ("1", "true"):   # same rule as agent/config.py
     tick("auth path A: Vertex via ADC (STUDIO_VERTEX=1)", True)
 else:
     tick("auth path B: GOOGLE_API_KEY set", bool(os.environ.get("GOOGLE_API_KEY")),
@@ -77,9 +77,9 @@ try:
     r = httpx.get(f"{config.STUDIO_URL}/api/trends", timeout=3)
     tick(f"Vibe Studio up at {config.STUDIO_URL}", r.status_code == 200)
 except Exception:
-    # not a failure: the studio is deliberately booted in section 2,
+    # not a failure: the studio is deliberately booted in the 🗺️ chapter,
     # right before the first click that needs it
-    print(f"  - Vibe Studio: not running yet (section 2 boots it)")
+    print(f"  - Vibe Studio: not running yet (the 🗺️ chapter boots it)")
 
 # the room: optional. Configured -> reachable is a tick; blank -> local only.
 room_url = os.environ.get("VIBETUBE_URL", "").rstrip("/")

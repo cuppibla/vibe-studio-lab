@@ -528,7 +528,12 @@ def state_page(request: Request):
         mem_html = ('<div class="note"><span class="dot"></span> connecting — creating an '
                     'Agent Engine to host the bank (~30s, one-time)…</div>')
     elif bank_name:
-        tail = bank_log.read_text()[-700:] if bank_log.exists() else ""
+        tail = ""
+        if bank_log.exists():          # the command's own lines, minus SDK warning noise
+            keep = [l for l in bank_log.read_text().splitlines()
+                    if l.strip() and not l.startswith("/") and "Warning" not in l
+                    and not l.strip().startswith("_client")]
+            tail = "\n".join(keep[-8:])
         mem_html = (f'<div class="note mono" style="font-size:11.5px">{bank_name}</div>'
                     + (f'<pre class="mono" style="font-size:11px;line-height:1.5;white-space:pre-wrap;'
                        f'margin:6px 0 4px;color:#5C5346">{tail}</pre>' if tail else "")

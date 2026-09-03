@@ -94,7 +94,23 @@ python scripts/preflight.py
 ```
 
 *You should see* every line tick (Vibe Studio reports `not running yet` —
-correct: the app chapter 🗺️ boots it), ending in `PREFLIGHT GREEN`.
+correct: the app chapter 🗺️ boots it), ending in `PREFLIGHT GREEN`:
+
+```
+  ✓ python 3.12
+  ✓ greenlet (async sqlite)
+  ✓ auth path A: Vertex via ADC (STUDIO_VERTEX=1)
+  ✓ Google Cloud ADC (project <your-project>)
+  ✓ Memory Bank SDK
+  ✓ stage0_prompt loads
+  ✓ stage1_fanout loads (5 edges)
+  ✓ stage2_direction loads (8 edges)
+  ✓ stage3_router loads (12 edges)
+  - Vibe Studio: not running yet (the 🗺️ chapter boots it)
+  - room: not configured (local only — publishing still works)
+
+PREFLIGHT GREEN
+```
 
 ### Three tabs, five arrows
 
@@ -1461,10 +1477,13 @@ ls runs
 *Our real run:*
 
 ```
-broker.json        graph_run.log     state.json       ui_busy.json
-delivered.json     memorybank.json   thumbdrafts.json wall.db
-graph_report.json  premiere_….mp4    sessions.db
+broker.json  sessions.db  state.json  thumbdrafts.json  ui_busy.json  wall.db
 ```
+
+(Six files after one video. The folder grows with the lab — the graph
+chapter adds `graph_report.json` and `graph_run.log`, the bank adds
+`memorybank.json`, a room adds `premiere_….mp4` — but nothing in it ever
+depends on a process being alive.)
 
 👉💻 Start the app again, same tab, same venv (press ↑ twice, or retype):
 
