@@ -47,6 +47,17 @@ def main():
         if joinlogic.try_finish() is not None:
             return
         time.sleep(1.0)
+
+    # The window closed with results still out (a late retake, a slow farm).
+    # A worker must never leave a lap hanging: every wait still open gets the
+    # prebaked stand-in - the same deadline rule, applied one last time - and
+    # the join is asked once more. Bounded by a clock, finished by a rule.
+    jobs = {j["id"]: j for j in broker.poll()}
+    for cid, name, resp in drive.run(drive.pending(sid)):
+        job = jobs.get(resp.get("job_id")) or {"id": resp.get("job_id"), "status": "queued"}
+        joinlogic.handle_deadline(cid, name, resp, job)
+    if joinlogic.try_finish() is not None:
+        return
     print("finish window elapsed; run `python -m agent.status` to inspect")
 
 

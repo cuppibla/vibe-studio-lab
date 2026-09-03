@@ -1317,8 +1317,11 @@ worker hands the failed prompt to a one-shot repair agent
 (<code>prompt_medic</code>), which rewrites it; the retake is submitted
 <i>inside the wait</i>, no restart. One render never finishes — at
 <code>STUDIO_DEADLINE_S</code> the worker stops waiting and delivers a
-prebaked stand-in instead. Failures repaired mid-wait, stragglers bounded by
-a clock: that is what "waiting well" means in production.
+prebaked stand-in instead — and when its own time window closes, it sweeps
+every wait still open the same way before asking the join one last time,
+so a late retake can never leave the lap hanging. Failures repaired
+mid-wait, stragglers bounded by a clock: that is what "waiting well" means
+in production.
 </aside>
 
 <aside class="positive">
