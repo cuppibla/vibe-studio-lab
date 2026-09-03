@@ -442,15 +442,15 @@ Duration: 0:05:00
 
 ### Turn 2 — change it without describing it again
 
-👉🔬 In the chat box, ask for one change. Again: short. `make the light
-warmer` · `add a tiny moon in the window` · `more chaos in the laundry
-pile`:
+👉🔬 In the chat box, ask for one change to the picture AND new words for
+the sticker — short, and do NOT describe the scene again:
 
 ```
-make the light warmer
+make the light warmer, and change the words to: Sock Emergency
 ```
 
-*You should see* the same shape as before — a `thumb_revise` call, a
+*You should see* the same shape as before — a `thumb_revise` call (click
+it: `change` is your light request, `caption` is your new words), a
 pending receipt, WAITING. Give it ~30 seconds, peek at the drafts folder
 in **tab 1** (the editor tab you already have open shows the new PNG), and
 approve it the same way (`{"status": "approved"}` in the response box) —
@@ -608,7 +608,7 @@ Duration: 0:11:00
 graph: research fans out → one join → three candidate directions → *a pause
 that waits for you* → **a policy gate that can refuse** → a script (written
 quietly). That band is what the stages below grow, and its edge list is the
-one you will write at the EDGES hole. Notice the two greyed research
+one you will read in the real file at the end. Notice the two greyed research
 slots: the audience graph and the memory bank are NOT wired yet — each
 joins the fan-out in its own chapter, one edge at a time, and the map
 grows a node when you add it. **Middle band** — deliberately NOT a graph:
@@ -750,8 +750,8 @@ Follow the middle column: `persist_direction` writes `direction`, and the
 red arrow is the punchline of the next stage — **the router's decision is
 driven by a value you put in state.**
 
-👉📖 Two lines of real code say it better than any prose. In
-`agent/graph.py`, `direction_gate` WRITES:
+👉📖 Two lines of real code say it better than any prose — read only,
+nothing to change. In `agent/graph.py`, `direction_gate` WRITES:
 
 ```python
     cands = [c.model_dump() for c in node_input.candidates]
@@ -860,9 +860,9 @@ changes.
 ## 🗺️ The policy gate, then run the real thing
 Duration: 0:11:00
 
-- **What** — grow the last piece (a deterministic router that can refuse), read the replacement table, write the real edge list yourself, boot Vibe Studio and run the whole graph as a lap — three touches, everything else automatic.
-- **Why** — this is where "the small workflows" and "the real workflow" turn out to be the same thing: stage 3 IS the lap graph, the EDGES hole is a recital of it, and the app is just the graph with buttons.
-- **How** — stage 3 (+ your policy word) → the replacement table → the EDGES hole → boot the app → drop the idea → pick a direction → watch the rest run itself.
+- **What** — grow the last piece (a deterministic router that can refuse), read the replacement table, read the real edge list in the real file, boot Vibe Studio and run the whole graph as a lap — three touches, everything else automatic. Nothing to type in code.
+- **Why** — this is where "the small workflows" and "the real workflow" turn out to be the same thing: stage 3 IS the lap graph, the real file's edge list is a recital of it, and the app is just the graph with buttons.
+- **How** — stage 3 (watch it refuse) → the replacement table → the real edge list → boot the app → drop the idea → pick a direction → watch the rest run itself.
 
 ### Stage 3 — the policy gate, and the graph is complete
 
@@ -882,7 +882,8 @@ codelab.)
 cloudshell edit ~/vibe-studio-lab/agent/graph.py
 ```
 
-👉📖 Find `policy_check`. The decision is four lines:
+👉📖 Find `policy_check` — read only, nothing to change. The decision is
+four lines:
 
 ```python
     text = f"{node_input.get('title', '')} {node_input.get('angle', '')}".lower()
@@ -926,31 +927,32 @@ step because it IS different: one node in, two ways out.
 node wears an amber diamond and its edges carry **OK** and **BLOCK**
 chips, so you can read the decision off the picture while a lap runs.
 
-**Now make the policy yours.**
+**Now watch it refuse.**
 
-👉💻 In **tab 1**, open the policy file:
+👉💻 In **tab 1**, open the policy file — read only, nothing to change:
 
 ```console
 cloudshell edit ~/vibe-studio-lab/agent/policy_words.txt
 ```
 
-👉✏️ Add ONE line at the bottom with a word you choose — our run added
-`cliffhanger`. Save with Ctrl+S. Nothing to restart.
+Three words, one per line — `competitor` is one of them.
 
 👉🔬 Back in adk web, start a fresh run in `stage3_router`, and this time
-answer the form with `custom` — type a direction that contains your word:
+answer the form with `custom` — type a direction that contains that word:
 
-pick: `custom` · custom: `Robot ends on a cliffhanger`
+pick: `custom` · custom: `Robot reviews a competitor's vacuum`
 
-![Stage 3 — route: BLOCK, on the word you added](codelab-img/st3-block.png)
+![Stage 3 — route: BLOCK, on a word from the policy file](codelab-img/st3-block.png)
 
 👀 `route: BLOCK` → `quarantine` → done — and the map shows the BLOCK
 path lit while `scripter` stays grey: nothing was written, rendered or
 paid. **That is what a router is:** whether something proceeds is an
 *edge you can read*, not a sentence in a prompt asking a model to be
-careful — stage 0 certified itself; this graph refused YOU, with your own
-rule, and recorded why in `lineage.gates`. The same file guards every
-real lap from here on.
+careful — stage 0 certified itself; this graph refused YOU, with a rule
+from a text file, and recorded why in `lineage.gates`. The same file
+guards every real lap from here on. (Because the file is read at decision
+time, adding a word of your own would take effect on the very next run —
+no restart. Not needed for this lab.)
 
 ### The replacement table
 
@@ -965,15 +967,13 @@ chapter — read it slowly once:
 | "describe the video" | `scripter` (an Agent, as a node, running quietly) | the model still writes — inside a shape you can debug, after the gate |
 | the prompt's silent glue ("then… then…") | the edge list | the order is a drawing, not a mood |
 
-### The EDGES hole — write the graph you grew
+### The real edge list — the graph you grew, in five lines
 
-The real file's nodes all exist. Its **edge list does not** — and after
-three stages of running it in pieces, writing it is a recital, not a leap.
+👉💻 In **tab 1**, `agent/graph.py` is already open in the editor — read
+only, nothing to change.
 
-👉💻 In **tab 1**, `agent/graph.py` is already open in the editor.
-
-👉✏️ Find the line marked `TODO: EDGES`, **delete** it and **uncomment**
-the base graph below it (select the lines, Ctrl+/). The edge list becomes:
+👉📖 Scroll to the bottom, to `wf = Workflow(...)`. Its edge list is the
+graph you just grew, stage by stage:
 
 <!-- code: EDGES -->
 ```python
@@ -985,16 +985,18 @@ the base graph below it (select the lines, Ctrl+/). The edge list becomes:
         (scripter, store_script),
 ```
 
-That is stage 3's list, in your own hand, in the real file. Why it
-matters: **the Studio app's driver imports `wf` from this file** — until
-you write its edges, the product has no graph to run. The stage apps
-declared their own edge lists, which is why they ran while this one was
-still empty. (Two TODO lines remain below it — `GRAPH_EDGE` and
-`MEMORY_EDGE`. Leave them: each is a research feed you wire in later, and
-the map will grow a node when you do.)
+Read it against stage 3's map: two readers into the join, the straight
+line through the human door to the router, the router's two labelled
+exits, the quiet script. Nothing here is new — you ran every line of it
+in pieces. Why this file matters: **the Studio app's driver imports `wf`
+from here** — the product is this graph with buttons. Two lines right
+below it are commented out and marked `TODO: GRAPH_EDGE` and `TODO:
+MEMORY_EDGE`: each is a research feed you wire in later, one line each,
+and the live map will grow a node when you do. Those two lines are the
+only edits this lab asks of you.
 
-👉 In `direction_gate`, the following code suspends the graph for a
-person — you have now answered it three times, in two costumes:
+👉📖 In `direction_gate` — read only — the following code suspends the
+graph for a person; you have now answered it three times, in two costumes:
 
 ```python
     yield RequestInput(
@@ -1084,7 +1086,7 @@ by themselves. Stop here; the video is cooking. The next chapter is the
 third touch.
 
 *What you learned:* the stages were never warm-ups — they were the real
-graph, met in pieces; the EDGES hole was a recital; and the product is the
+graph, met in pieces; the real edge list was a recital; and the product is the
 same graph with buttons, where every button you did NOT have to press is a
 decision the pipeline could make without you.
 
@@ -1157,7 +1159,9 @@ them by id — **counting is yours**, and this is all counting takes.
 
 ### Judge the thumbnail
 
-👉🌐 Back in Vibe Studio, the card reads **Ship this thumbnail?** — the
+👉🌐 Back in Vibe Studio (the **Web Preview → Change port → 4600** tab you
+opened in 🗺️; reopen it the same way if you closed it), the card reads
+**Ship this thumbnail?** — the
 picture was generated from YOUR chosen direction, by the same studio that
 drew your draft in ⏳:
 
@@ -1709,9 +1713,11 @@ Memory Bank chapter 🧠 turns it into a rule.
 
 ### See it drawn
 
-👉🌐 Open the BigQuery console (just browse): your project → dataset
-`vibestudio` → **Tables** shows all six with row counts — then
-**Graphs → taste_graph**:
+👉🌐 Open the BigQuery console (just browse):
+[console.cloud.google.com/bigquery](https://console.cloud.google.com/bigquery)
+— pick your project in the top bar if it is not already selected. In the
+Explorer: your project → dataset `vibestudio` → **Tables** shows all six
+with row counts — then **Graphs → taste_graph**:
 
 ![Your edges, drawn — 4 nodes, 3 edges in the console's graph editor](codelab-img/s4-console-graph.png)
 
@@ -1911,8 +1917,11 @@ memory topics (custom): CHANNEL_LESSONS · CHANNEL_CONSTRAINTS · AUDIENCE
 the bank holds 0 note(s)
 ```
 
-👉🌐 See it in the Cloud console (just browse): **Agent Platform → Memory
-Bank** — your engine in the list, with its memory count:
+👉🌐 See it in the Cloud console (just browse):
+[console.cloud.google.com/vertex-ai/agents/agent-engines](https://console.cloud.google.com/vertex-ai/agents/agent-engines)
+— the Agent Engine list for your project (pick the project in the top bar
+if needed); open your engine and click its **Memory Bank** tab to see the
+memory count:
 
 ![The bank, in the console — a managed resource in your project](codelab-img/s5-console-memorybank.png)
 
@@ -1936,7 +1945,8 @@ cloudshell edit ~/vibe-studio-lab/agent/learn.py
 code is deliberately plain: the drop-at-5s *reading* becomes a
 conclusion-first *rule*; the neighbor overlap becomes one audience sentence.
 Notice what never enters a note: no video ids, no row counts, no job ids.
-👉 In `write_facts()` (same file as before, `agent/memory.py`), the
+👉📖 In `write_facts()` (same file as before, `agent/memory.py`) — read
+only, nothing to change — the
 following call is the entire write path:
 
 <!-- code: GENERATE -->
@@ -2051,7 +2061,7 @@ thumbnail card comes, **Approve ▸**.
 👀 Three cards, in order: the first video (your taste, typed by hand), the
 second (form pre-filled, brief citing the graph), the third (script
 opening on the conclusion the audience taught it). **The graph never
-changed after the EDGES hole — one edge list, three videos, each better,
+changed except for the two edges you added — one edge list, three videos, each better,
 because each lap woke up knowing more.** And if Setup joined a room, the
 room watched your channel grow too — every Finish premiered there,
 silently.
@@ -2135,7 +2145,7 @@ whole story in one table:
 | ⏳ you drafted a thumbnail and approved it | pending is a **value** in the session log, not a thread — and the answer that ends a wait is usually a **human judgment**, delivered by id |
 | 🪞 you revised it without re-describing it | multi-turn is stable because **agent state has an address outside the process** — a callback wrote `user:` keys, and the world kept its own ledger |
 | 🔀 you ran the channel as one prompt, then grew the graph | "why a workflow" is a before/after you can feel: parallelism you can see, three candidates in STATE, a pause nothing can talk past |
-| 🗺️ you added your policy word and wrote the edges | a refusal is an **edge you can read**, firing BEFORE any money — and the EDGES hole was a recital of the graph you grew |
+| 🗺️ you watched the policy gate refuse, then read the real edge list | a refusal is an **edge you can read**, firing BEFORE any money — and the real file's edge list was a recital of the graph you grew |
 | 🏁 you approved the real thumbnail | "all done" is **your two lines** (ADK counts nothing for you); after your last judgment, everything else is a worker — the wall and the room, silently |
 | 💾 the studio spoke first | lifetime = **where you store it**; `user:prefs` outlives every session, so the welcome screen already knows your taste |
 | 🌍 you wired in the audience graph | a graph is a **declared lens** over tables; wiring a new sense cost ONE edge, and the live map grew a node |

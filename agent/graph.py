@@ -244,13 +244,12 @@ wf = Workflow(
     name="lap",
     description="research -> the human door -> the policy gate -> script",
     edges=[
-        # TODO: EDGES — delete me, uncomment the base graph below (Codelab 🗺️, the EDGES hole)
-        # (START, scan_trends, join_research),
-        # (START, read_backcatalog, join_research),
-        # (join_research, compose_bundle, propose_directions, direction_gate,
-        #  persist_direction, policy_check),
-        # (policy_check, {"OK": scripter, "BLOCK": quarantine}),
-        # (scripter, store_script),
+        (START, scan_trends, join_research),
+        (START, read_backcatalog, join_research),
+        (join_research, compose_bundle, propose_directions, direction_gate,
+         persist_direction, policy_check),
+        (policy_check, {"OK": scripter, "BLOCK": quarantine}),
+        (scripter, store_script),
         # TODO: GRAPH_EDGE — delete me, uncomment below: the audience graph joins the fan-out (Codelab 🌍)
         # (START, read_graph, join_research),
         # TODO: MEMORY_EDGE — delete me, uncomment below: the channel's memory joins the fan-out (Codelab 🧠)

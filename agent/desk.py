@@ -26,17 +26,18 @@ def thumb_submit(idea: str, caption: str) -> dict:
             "idea": idea, "caption": caption}
 
 
-def thumb_revise(change: str) -> dict:
+def thumb_revise(change: str, caption: str = "") -> dict:
     """Change the existing draft thumbnail - warmer light, a prop, a mood.
     Continues from the draft already on file, so the scene stays the same.
+    `caption` (optional): new 2-4 sticker words; empty keeps the old ones.
     Returns immediately; the new version arrives later."""
     from world import thumbstudio
     latest = thumbstudio.latest()
     if not latest:
         return {"status": "error", "reason": "no draft yet - call thumb_submit first"}
-    job_id = thumbstudio.submit(change, parent=latest["id"])
+    job_id = thumbstudio.submit(change, parent=latest["id"], caption=caption)
     return {"status": "pending", "job_id": job_id, "kind": "thumb_draft",
-            "change": change, "from": latest["id"]}
+            "change": change, "caption": caption, "from": latest["id"]}
 
 
 def request_thumb_approval(thumb_ref: str) -> dict:
@@ -77,7 +78,8 @@ render_desk = Agent(
         "the feeling of the moment, no punctuation, no emoji.\n"
         "REVISE THE DRAFT: asked to change something on the existing draft "
         "(light, mood, a prop, a color) -> call thumb_revise exactly once with "
-        "just that change.\n"
+        "just that change; if the user also gives new words for the sticker, "
+        "pass them as caption, otherwise leave caption empty.\n"
         "SHOTS: given shots to render -> call render_submit once PER shot, all in "
         "this same turn; if later asked for an additional retake shot, call "
         "render_submit once for it.\n"
