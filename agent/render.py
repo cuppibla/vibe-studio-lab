@@ -28,7 +28,8 @@ def main():
     state.save(st)
 
     print("── thumbnail: generating from YOUR direction ──")
-    thumb = thumbstudio.generate(run_id, st["script"]["title"], st.get("direction", ""))
+    thumb = thumbstudio.generate(run_id, st["script"]["title"], st.get("direction", ""),
+                                 hook=st.get("hook", ""))
     state.update(thumb=thumb)
     print(f"  thumb: {thumb['ref']} · generated={thumb['generated']}")
 

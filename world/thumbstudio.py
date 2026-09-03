@@ -19,6 +19,10 @@ Two ideas live here, and the codelab teaches both:
     survived, and they are enough. That is state management for long-running
     work, in one function.
 
+A thumbnail is art PLUS words. Image models garble text, so the words are
+code's job: caption_sticker() prints a 2-4 word caption (written by the
+agent, not the user) in the corner of the finished art.
+
 The same prompt layers also serve the LAP: generate() is the synchronous
 path that turns your chosen direction into the video's real thumbnail.
 
@@ -44,9 +48,15 @@ STYLE_LOCK = (
     "palette of cream, terracotta, sage green and sky blue, soft bright "
     "daylight, handmade miniature diorama feel.")
 CONSTRAINTS = (
-    "YouTube thumbnail illustration, 16:9 framing, one comic decisive moment, "
-    "expressive, joyful disaster energy, generous negative space, no text, "
-    "no words, no letters, no logos.")
+    "A YouTube thumbnail illustration in a WIDE 16:9 frame that the scene fills "
+    "edge to edge - no borders, no side bars, no letterboxing, no vignette, no "
+    "picture frame. One comic decisive moment, expressive, joyful disaster "
+    "energy, the subject large and centered-right, the lower-left corner calm "
+    "and uncluttered (a caption sticker goes there). No text, no words, no "
+    "letters, no logos.")
+FILL_THE_FRAME = (" IMPORTANT: the artwork must cover the whole wide canvas - "
+                  "paint all the way to the left and right edges, never leave "
+                  "empty bars.")
 
 
 def draft_prompt(idea: str) -> str:
@@ -70,12 +80,14 @@ def _save(d: dict) -> None:
     LEDGER.write_text(json.dumps(d, indent=2))
 
 
-def submit(description: str, parent: str | None = None) -> str:
-    """Queue a draft thumbnail and start the worker. Returns instantly."""
+def submit(description: str, parent: str | None = None, caption: str = "") -> str:
+    """Queue a draft thumbnail and start the worker. Returns instantly.
+    `caption` is the 2-4 word sticker text; a revision inherits its parent's."""
     job_id = f"thm_{uuid.uuid4().hex[:6]}"
     d = _load()
     d["jobs"][job_id] = {"id": job_id, "description": description, "parent": parent,
-                         "status": "queued", "submitted_at": time.time()}
+                         "caption": caption.strip(), "status": "queued",
+                         "submitted_at": time.time()}
     _save(d)
     subprocess.Popen([sys.executable, "-m", "world.thumbstudio", "--job", job_id],
                      cwd=str(config.ROOT), stdout=subprocess.DEVNULL,
@@ -93,27 +105,51 @@ def latest() -> dict | None:
     return max(done, key=lambda j: j.get("finished_at", 0)) if done else None
 
 
-def anchor(job: dict) -> str:
-    """Walk the parent chain back to turn 1 - the idea the user actually
-    typed. Turn 2's description is a change ('warmer light'), not a scene,
-    so the lineage in the ledger is what answers 'what is this?'."""
+def _chain(job: dict):
+    """Walk the parent chain back to turn 1."""
     jobs = _load()["jobs"]
     seen = set()
-    while job.get("parent") and job["parent"] in jobs and job["id"] not in seen:
+    while True:
+        yield job
+        if not job.get("parent") or job["parent"] not in jobs or job["id"] in seen:
+            return
         seen.add(job["id"])
         job = jobs[job["parent"]]
-    return job.get("description", "")
 
 
-# ── the title band · a thumbnail is art PLUS words ─────────────────────────
-# Image models garble long text, so the studio draws the art and then LAYS
-# THE TITLE ON TOP itself - crisp every time, and the same house style.
+def anchor(job: dict) -> str:
+    """The idea the user actually typed - turn 1's description. Turn 2's
+    description is a change ('warmer light'), not a scene, so the lineage in
+    the ledger is what answers 'what is this?'."""
+    return list(_chain(job))[-1].get("description", "")
+
+
+def short(text: str, n: int = 4) -> str:
+    """A caption when nobody wrote one: the first few words."""
+    return " ".join(text.replace("—", " ").split()[:n])
+
+
+def caption_for(job: dict) -> str:
+    """The sticker text: the first caption found up the chain, else a short
+    cut of the original idea."""
+    for j in _chain(job):
+        if j.get("caption"):
+            return j["caption"]
+    return short(anchor(job))
+
+
+# ── the caption sticker · a thumbnail is art PLUS words ────────────────────
+# Image models garble long text, so the studio draws the art and then prints
+# the caption itself - a chunky rounded display face (Lilita One, bundled,
+# OFL) with a dark outline, tilted like a sticker, in the calm corner the
+# prompt reserved for it.
 FONTS = [
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",          # Cloud Shell
-    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",  # other Linux
-    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",             # macOS
-    "/Library/Fonts/Arial Bold.ttf",
+    str(config.ROOT / "app" / "static" / "fonts" / "LilitaOne-Regular.ttf"),   # bundled
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",                     # any Linux
+    "/System/Library/Fonts/Supplemental/Arial Rounded Bold.ttf",                # macOS
 ]
+INK = (43, 35, 32)
+PAPER = (255, 250, 244)
 
 
 def _font(size: int):
@@ -122,44 +158,90 @@ def _font(size: int):
     for f in FONTS:
         if _p.Path(f).exists():
             return ImageFont.truetype(f, size)
-    return None                    # no font on this box: art without the band
+    return None                    # no font on this box: art without the caption
 
 
-def title_band(png, title: str) -> None:
-    """Draw the video's title across the bottom of the thumbnail, in place."""
-    if not title:
+def _wrap(words, font, draw, max_w):
+    lines, line = [], ""
+    for w in words:
+        trial = f"{line} {w}".strip()
+        if draw.textlength(trial, font=font) <= max_w or not line:
+            line = trial
+        else:
+            lines.append(line)
+            line = w
+    if line:
+        lines.append(line)
+    return lines
+
+
+def caption_sticker(png, text: str) -> None:
+    """Print the caption on the thumbnail, in place: white letters, dark
+    outline, a soft shadow, a 3-degree tilt, bottom-left. Never fails a lap."""
+    if not text:
         return
     try:
         from PIL import Image, ImageDraw
-        img = Image.open(png).convert("RGB")
+        img = Image.open(png).convert("RGBA")
         W, H = img.size
-        font = _font(max(28, int(W * 0.052)))
-        if font is None:
-            return
-        draw = ImageDraw.Draw(img, "RGBA")
-        # wrap to at most two lines that fit the width
-        words, lines, line = title.upper().split(), [], ""
-        for w in words:
-            trial = f"{line} {w}".strip()
-            if draw.textlength(trial, font=font) <= W * 0.86 or not line:
-                line = trial
-            else:
-                lines.append(line); line = w
-            if len(lines) == 2:
+        words = text.strip().split()
+        probe = ImageDraw.Draw(img)
+        size = int(H * 0.17)
+        while size > int(H * 0.08):           # shrink until it fits in two lines
+            font = _font(size)
+            if font is None:
+                return
+            lines = _wrap(words, font, probe, W * 0.62)
+            if len(lines) <= 2:
                 break
-        if line and len(lines) < 2:
-            lines.append(line)
-        lh = font.size * 1.22
-        band_h = int(lh * len(lines) + font.size * 0.9)
-        draw.rectangle([0, H - band_h, W, H], fill=(43, 35, 32, 214))
-        y = H - band_h + font.size * 0.42
-        for ln in lines:
-            x = (W - draw.textlength(ln, font=font)) / 2
-            draw.text((x, y), ln, font=font, fill=(255, 250, 244))
-            y += lh
-        img.save(png)
+            size -= 2
+        stroke = max(3, int(size * 0.10))
+        lh = size * 1.02
+        x0, y0 = int(W * 0.05), int(H - H * 0.075 - lh * len(lines))
+        layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        d = ImageDraw.Draw(layer)
+        for i, ln in enumerate(lines):
+            y = y0 + i * lh
+            d.text((x0 + size * 0.05, y + size * 0.07), ln, font=font,      # shadow
+                   fill=(*INK, 110), stroke_width=stroke, stroke_fill=(*INK, 110))
+            d.text((x0, y), ln, font=font, fill=(*PAPER, 255),             # letters
+                   stroke_width=stroke, stroke_fill=(*INK, 255))
+        layer = layer.rotate(3, resample=Image.BICUBIC,
+                             center=(x0, y0 + lh * len(lines)))            # sticker tilt
+        img.alpha_composite(layer)
+        img.convert("RGB").save(png)
     except Exception as e:                     # never fail a lap over a font
-        print(f"  [thumbstudio] title band skipped ({str(e)[:60]})")
+        print(f"  [thumbstudio] caption skipped ({str(e)[:60]})")
+
+
+# ── the frame guard · a wide canvas must be a wide picture ─────────────────
+def _letterboxed(img) -> bool:
+    """True when the model painted a narrow picture and padded the sides."""
+    from PIL import ImageStat
+    W, H = img.size
+    band = max(8, int(W * 0.10))
+    g = img.convert("L")
+    left = ImageStat.Stat(g.crop((0, 0, band, H)))
+    right = ImageStat.Stat(g.crop((W - band, 0, W, H)))
+    return left.stddev[0] < 7 and right.stddev[0] < 7 and \
+        abs(left.mean[0] - right.mean[0]) < 14
+
+
+def _cover_crop(img):
+    """Last resort: cut the padded bars away and re-fill the wide frame."""
+    from PIL import Image, ImageStat
+    W, H = img.size
+    g = img.convert("L").resize((240, 60))
+    cols = [ImageStat.Stat(g.crop((x, 0, x + 1, 60))).stddev[0] for x in range(240)]
+    live = [x for x, s in enumerate(cols) if s > 8]
+    if not live:
+        return img
+    x0, x1 = int(live[0] / 240 * W), int((live[-1] + 1) / 240 * W)
+    content = img.crop((x0, 0, x1, H))
+    scale = W / content.width
+    grown = content.resize((W, int(H * scale)), Image.LANCZOS)
+    top = (grown.height - H) // 2
+    return grown.crop((0, top, W, top + H))
 
 
 def _client():
@@ -182,11 +264,31 @@ def _cfg():
                                     image_config=gt.ImageConfig(aspect_ratio="16:9"))
 
 
+def _call(client, contents, out) -> bool:
+    return _extract(client.models.generate_content(model=MODEL, contents=contents,
+                                                   config=_cfg()), out)
+
+
+def _wide(client, contents, out, retry_with=None) -> bool:
+    """Generate, then guard the frame: a letterboxed result is drawn once more
+    with the fill-the-frame line; if it still comes back padded, cover-crop."""
+    from PIL import Image
+    if not _call(client, contents, out):
+        return False
+    if _letterboxed(Image.open(out)):
+        print("  [thumbstudio] letterboxed - asking for a full-width frame once more")
+        if retry_with is not None and _call(client, retry_with, out) \
+                and not _letterboxed(Image.open(out)):
+            return True
+        _cover_crop(Image.open(out).convert("RGB")).save(out)
+    return True
+
+
 def _generate(job: dict, out) -> bool:
     from google.genai import types as gt
     client = _client()            # keep the reference: a temporary gets closed mid-call
     parent = _load()["jobs"].get(job.get("parent") or "", {})
-    # the CLEAN master, never the banded display copy - otherwise turn 2 would
+    # the CLEAN master, never the stickered display copy - otherwise turn 2 would
     # ask the model to reproduce burnt-in text
     parent_png = DRAFTS / f"{parent.get('id')}.png" if parent.get("id") else None
     if parent_png and parent_png.exists():
@@ -194,10 +296,9 @@ def _generate(job: dict, out) -> bool:
         contents = [gt.Part.from_bytes(data=parent_png.read_bytes(),
                                        mime_type="image/png"),
                     change_prompt(job["description"])]
-    else:
-        contents = draft_prompt(job["description"])
-    return _extract(client.models.generate_content(model=MODEL, contents=contents,
-                                                   config=_cfg()), out)
+        return _wide(client, contents, out)
+    prompt = draft_prompt(job["description"])
+    return _wide(client, prompt, out, retry_with=prompt + FILL_THE_FRAME)
 
 
 def work(job_id: str) -> None:
@@ -215,11 +316,11 @@ def work(job_id: str) -> None:
     except Exception as e:
         ok, err = False, str(e)[:140]
     shown = out                    # what the app displays
-    if ok:                         # keep `out` clean; band a COPY for display
+    if ok:                         # keep `out` clean; sticker a COPY for display
         import shutil as _sh
         shown = DRAFTS / f"{job_id}_titled.png"
         _sh.copyfile(out, shown)
-        title_band(shown, anchor(_load()["jobs"][job_id]))
+        caption_sticker(shown, caption_for(_load()["jobs"][job_id]))
     d = _load()                    # re-read: the ledger may have moved on
     d["jobs"][job_id].update({"status": "done", "generated": ok,
                               "url": f"{WEB}/{shown.name}" if ok else FALLBACK,
@@ -228,26 +329,28 @@ def work(job_id: str) -> None:
     _save(d)
 
 
-def generate(run_id: str, title: str, direction: str, attempt: int = 0) -> dict:
+def generate(run_id: str, title: str, direction: str, attempt: int = 0,
+             hook: str = "") -> dict:
     """The LAP's synchronous path: the video's real thumbnail, from your
-    chosen direction. Same prompt layers as the drafts. Falls back to a
+    chosen direction. Same prompt layers as the drafts; the sticker text is
+    the direction's `hook` (2-4 words the proposer wrote). Falls back to a
     prebaked thumb (honestly flagged) if the image model is unavailable."""
     import shutil
     THUMBS.mkdir(parents=True, exist_ok=True)
     suffix = f"_r{attempt}" if attempt else ""
     out = THUMBS / f"{run_id}{suffix}.png"
+    words = hook.strip() or short(title, 5)
     try:
         client = _client()   # keep the reference: a temporary gets closed mid-call
-        ok = _extract(client.models.generate_content(
-            model=MODEL, contents=draft_prompt(direction or title), config=_cfg()), out)
-        if not ok:
+        prompt = draft_prompt(direction or title)
+        if not _wide(client, prompt, out, retry_with=prompt + FILL_THE_FRAME):
             raise RuntimeError("no image part in response")
-        title_band(out, title)          # art, then the words on top
+        caption_sticker(out, words)          # art, then the words on top
         return {"ref": f"/static/thumbs/{out.name}", "generated": True}
     except Exception as e:
         print(f"  [thumbstudio] fell back to prebaked ({str(e)[:70]})")
         shutil.copyfile(config.ROOT / "app" / FALLBACK.lstrip("/"), out)
-        title_band(out, title)
+        caption_sticker(out, words)
         return {"ref": f"/static/thumbs/{out.name}", "generated": False}
 
 

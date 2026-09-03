@@ -16,6 +16,7 @@ class Brief(BaseModel):
 class Direction(BaseModel):
     title: str           # <=60 chars, filmable, characterful
     angle: str           # the twist, one line
+    hook: str = ""       # 2-4 words printed as the thumbnail's sticker
     evidence: list[Evidence]
 
 

@@ -73,7 +73,8 @@ def rethumb():
         print("── thumbnail rejected — drawing another from the same direction ──")
     attempt = int(st.get("thumb_attempt", 0)) + 1
     thumb = thumbstudio.generate(run_id, st["script"]["title"],
-                                 st.get("direction", ""), attempt=attempt)
+                                 st.get("direction", ""), attempt=attempt,
+                                 hook=st.get("hook", ""))
     state.update(thumb=thumb, thumb_attempt=attempt)
     out = drive.run(drive.say(
         thumb_desk, sid, f"Request approval for this thumbnail: {thumb['ref']}"))

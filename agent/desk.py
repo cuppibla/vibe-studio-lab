@@ -15,14 +15,15 @@ def render_submit(shot_description: str) -> dict:
     return {"status": "pending", "job_id": job_id, "shot": shot_description}
 
 
-def thumb_submit(idea: str) -> dict:
+def thumb_submit(idea: str, caption: str) -> dict:
     """Draw a draft thumbnail for a video idea. `idea` is just the scene in a
-    few words - the studio adds its own house style. Returns immediately; the
-    picture itself takes ~20-30 seconds and arrives later."""
+    few words - the studio adds its own house style. `caption` is the 2-4
+    word sticker printed on the picture (you write it). Returns immediately;
+    the picture itself takes ~20-30 seconds and arrives later."""
     from world import thumbstudio
-    job_id = thumbstudio.submit(idea)
+    job_id = thumbstudio.submit(idea, caption=caption)
     return {"status": "pending", "job_id": job_id, "kind": "thumb_draft",
-            "idea": idea}
+            "idea": idea, "caption": caption}
 
 
 def thumb_revise(change: str) -> dict:
@@ -69,9 +70,11 @@ render_desk = Agent(
     instruction=(
         "You are the studio desk. Slow work reaches you in three shapes.\n"
         "NEW DRAFT: asked for a thumbnail for a video idea -> call thumb_submit "
-        "exactly once. Pass ONLY the scene words the user gave you (for example "
+        "exactly once. idea = ONLY the scene words the user gave you (for example "
         "'a tiny robot doing laundry at midnight'); never invent a visual style, "
-        "the studio owns that.\n"
+        "the studio owns that. caption = 2-4 punchy Title Case words YOU write "
+        "for the sticker on the picture (for example 'Laundry Night Chaos') - "
+        "the feeling of the moment, no punctuation, no emoji.\n"
         "REVISE THE DRAFT: asked to change something on the existing draft "
         "(light, mood, a prop, a color) -> call thumb_revise exactly once with "
         "just that change.\n"

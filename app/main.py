@@ -252,6 +252,11 @@ select{border:1.5px solid var(--line);border-radius:13px;padding:10px 13px;font-
 .grid{display:flex;gap:18px;flex-wrap:wrap}
 .v{width:calc(50% - 9px);border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#fff}
 .v img,.v video{width:100%;height:180px;object-fit:cover;display:block;background:#000}
+.play{position:relative;height:180px;background:#000;cursor:pointer}
+.play img,.play video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.play video{display:none}
+.play .pb{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:52px;height:52px;border-radius:50%;background:rgba(43,35,32,.72);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;padding-left:4px}
+.play.on img,.play.on .pb{display:none}.play.on video{display:block}
 .flow{margin:0 0 18px;padding:20px 16px 14px;background:#fff;border:1px solid var(--line);border-radius:18px;overflow-x:auto}
 .fs{display:flex;flex-direction:column;align-items:center;min-width:96px;flex:1}
 .fd{width:15px;height:15px;border-radius:50%;border:2px solid #D9CFC0;background:#fff}
@@ -471,7 +476,9 @@ def channel_page(request: Request):
             ref = v["video_ref"] or ""
             playable = ref.endswith(".mp4") and (
                 Path(__file__).parent / ref.lstrip("/")).exists()
-            media = (f'<video src="{ref}" poster="{thumb}" controls preload="none"></video>'
+            # thumbnail first - the video only appears when someone presses play
+            media = (f'<div class="play" onclick="playv(this)"><img src="{thumb}">'
+                     f'<span class="pb">▶</span><video src="{ref}" preload="none" playsinline></video></div>'
                      if playable else f'<img src="{thumb}">')
             cards.append(f"""<div class="v">{media}
 <div class="vi"><span class="mchip" style="font-size:10px">LAP {v['lap']}</span>
@@ -487,7 +494,8 @@ def channel_page(request: Request):
     body = f"""<div class="card">
 <div class="h0" style="font-size:19px">Your channel</div>
 <div class="h0s" style="margin-bottom:18px">every video the agent has published · 24 panel viewers watch each one</div>
-<div class="grid">{"".join(cards) or "<span class=note>nothing on the wall yet — finish a lap</span>"}</div>{made}</div>"""
+<div class="grid">{"".join(cards) or "<span class=note>nothing on the wall yet — finish a lap</span>"}</div>{made}</div>
+<script>function playv(el){{el.classList.add('on');var v=el.querySelector('video');v.controls=true;v.play();}}</script>"""
     return page("channel", body, refresh="static" not in request.query_params)
 
 

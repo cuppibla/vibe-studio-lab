@@ -106,7 +106,9 @@ propose_directions = Agent(
         "PITCH exactly THREE distinct candidate directions for the next <=20s "
         "video. Each candidate: a title (<=60 chars, a concrete filmable "
         "characterful scene - never a meta content-strategy topic) and an angle "
-        "(the twist, one line).\n"
+        "(the twist, one line), and a hook: 2-4 punchy Title Case words printed as "
+        "a sticker on the thumbnail - the feeling of the moment, no punctuation, "
+        "no emoji.\n"
         "Every evidence entry must cite a REAL source: 'trends', 'backcatalog', "
         "'memory#<id>' (ids present in the memory section only), or 'graph#<n>' "
         "(query numbers present in the graph section only). Empty or absent "
@@ -136,20 +138,23 @@ def persist_direction(node_input, candidates: list = [], constraints: str = ""):
     pick = (node_input or {}).get("pick", "1")
     custom = ((node_input or {}).get("custom") or "").strip()
     if pick == "custom" and custom:
-        chosen = {"title": custom, "angle": "(your own direction)", "evidence": []}
+        chosen = {"title": custom, "angle": "(your own direction)", "evidence": [],
+                  "hook": " ".join(custom.split()[:4])}
     elif candidates:
         i = int(pick) - 1 if pick.isdigit() else 0
         chosen = candidates[max(0, min(len(candidates) - 1, i))]
     else:
         chosen = {"title": custom or "untitled", "angle": "", "evidence": []}
+    hook = chosen.get("hook") or " ".join(chosen["title"].split()[:4])
     yield Event(state={"direction": chosen["title"], "angle": chosen.get("angle", ""),
-                       "constraints": constraints or "(none yet)",
+                       "hook": hook, "constraints": constraints or "(none yet)",
                        "user:prefs": {"last_direction": chosen["title"],
                                       "idea": state.load().get("hint", "")}})
     st = state.load()
     st["brief"] = {"topic": chosen["title"], "angle": chosen.get("angle", ""),
-                   "evidence": chosen.get("evidence", [])}
+                   "hook": hook, "evidence": chosen.get("evidence", [])}
     st["direction"] = chosen["title"]                    # driver clipboard copy
+    st["hook"] = hook
     state.save(st)
     yield Event(output=chosen)
 

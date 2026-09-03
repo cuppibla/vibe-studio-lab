@@ -329,14 +329,17 @@ cloudshell edit ~/vibe-studio-lab/app/static/thumbs/drafts
 
 *Our run typed "a tiny robot doing laundry at midnight":*
 
-![The draft, on disk — art from the model, the title band from code](codelab-img/s1-thumb-draft.png)
+![The draft, on disk — art from the model, the caption sticker from code](codelab-img/s1-thumb-draft.png)
 
-👀 That is a real thumbnail: the scene came from the image model, and the
-title band underneath was drawn by `title_band()` in
-`world/thumbstudio.py` after the art landed. (The clean art is kept too —
+👀 That is a real thumbnail, and it has two authors. The scene came from
+the image model. The words did not: the desk agent wrote those 2-4 words
+when it called `thumb_submit` (its `caption` argument — scroll up to the
+call and you will see them), and `caption_sticker()` in
+`world/thumbstudio.py` printed them after the art landed. Image models
+garble text, so words are code's job. (The clean art is kept too —
 `<job>.png` beside `<job>_titled.png` — because the next chapter sends the
-UNBANDED master back to the model, and asking it to re-draw burnt-in text
-would be asking for garble.)
+UNSTICKERED master back to the model, and asking it to re-draw burnt-in
+text would be asking for garble.)
 
 👉🔬 Like it? Then say so where it counts. Under the pending `thumb_submit`
 call sits that small input, **"Enter your response…"** — ADK's built-in
@@ -510,21 +513,26 @@ which job it came from. Here is the code that uses them —
 
 ```python
     parent = _load()["jobs"].get(job.get("parent") or "", {})
-    parent_png = (config.ROOT / "app" / parent.get("url", "").lstrip("/")
-                  if parent.get("url", "").startswith(WEB) else None)
+    # the CLEAN master, never the stickered display copy - otherwise turn 2 would
+    # ask the model to reproduce burnt-in text
+    parent_png = DRAFTS / f"{parent.get('id')}.png" if parent.get("id") else None
     if parent_png and parent_png.exists():
         # TURN 2 - the previous image IS the context; no re-describing the scene
         contents = [gt.Part.from_bytes(data=parent_png.read_bytes(),
                                        mime_type="image/png"),
                     change_prompt(job["description"])]
-    else:
-        contents = draft_prompt(job["description"])
+        return _wide(client, contents, out)
+    prompt = draft_prompt(job["description"])
+    return _wide(client, prompt, out, retry_with=prompt + FILL_THE_FRAME)
 ```
 
-Read the branch: no parent → build the layered prompt from scratch. Has a
-parent → **load that file from disk** and send the bytes back to the model
-with the change. The ledger row is the only thing that knows they are
-related.
+Read the branch: has a parent → **load that file from disk** and send the
+bytes back to the model with the change. No parent → build the layered
+prompt from scratch. The ledger row is the only thing that knows the two
+turns are related. (`_wide` is the frame guard: a wide canvas must come
+back as a wide picture, or the studio asks once more and, failing that,
+crops the padding away — the kind of deterministic check that belongs in
+code, not in a prompt.)
 
 ### Look at what you approved
 
@@ -1197,7 +1205,7 @@ needs a person.
 
 *You should see* the card flip to **On the wall.** within half a minute:
 
-![Published — the panel is watching, and the room can see you](codelab-img/s2c-published-v2.png)
+![Vibe Studio, the Now tab — On the wall: your video is published](codelab-img/s2c-published-v2.png)
 
 👀 The card is deliberately small: a link to your channel, and an idea box
 for the next lap that is **already filled in** — ignore that box for now,
@@ -1216,9 +1224,10 @@ to everyone else's:
 (Self-paced, no room: the line simply is not there, and nothing later
 depends on it.)
 
-👉🌐 Open the **Channel** tab and press **play** on your newest card:
+👉🌐 Open the **Channel** tab: your card shows the thumbnail you approved,
+sticker and all. Press **▶** on it to play:
 
-![Your video on the wall — a real mp4, playable](codelab-img/s2c-channel-play.png)
+![Vibe Studio, the Channel tab — your video on the wall, thumbnail first, ▶ to play](codelab-img/s2c-channel-play.png)
 
 👀 That is a genuine file: 1280×720 H.264, six seconds, written to
 `app/static/renders/final_<run>.mp4` by post-production and served by this
@@ -1477,12 +1486,12 @@ cloudshell edit ~/vibe-studio-lab/agent/graph.py
 
 ```
     yield Event(state={"direction": chosen["title"], "angle": chosen.get("angle", ""),
-                       "constraints": constraints or "(none yet)",
+                       "hook": hook, "constraints": constraints or "(none yet)",
                        "user:prefs": {"last_direction": chosen["title"],
                                       "idea": state.load().get("hint", "")}})
 ```
 
-Four keys in one yield, and ONE of them wears the prefix **`user:`** —
+Five keys in one yield, and ONE of them wears the prefix **`user:`** —
 keys wearing it are scoped to the user across ALL sessions. `direction`
 dies with this run; `user:prefs` is yours forever. Same database, one
 word, one lifetime longer. (`temp:` goes the other way: never persisted.)
