@@ -46,7 +46,7 @@ def main():
 
         if joinlogic.try_finish() is not None:
             return
-        time.sleep(1.0)
+        time.sleep(3.0 if config.REAL_VIDEO else 1.0)   # Veo operations are polled, not hammered
 
     # The window closed with results still out (a late retake, a slow farm).
     # A worker must never leave a lap hanging: every wait still open gets the

@@ -135,6 +135,12 @@ And every step starts with an arrow that tells you WHERE to do it:
 | 👉✏️ | edit a file in the Cloud Shell Editor — happens exactly twice, one line each |
 | 👀 | nothing to do; look and read |
 
+👀 One knob to know before Act II: the render farm is **real by default** —
+every video is three **Veo 3.1** shots, a minute or three each and a few
+dollars per lap. Watching cost, or self-paced with no video quota? Set
+`STUDIO_REAL_VIDEO=0` in `.env` and the farm becomes a prebaked clock:
+same waits, same code paths, 14 seconds and no video model.
+
 ### Join the room (optional — live workshops)
 
 If an instructor announced platform values, put them in `.env` now — this
@@ -588,12 +594,14 @@ now holds two `_titled.png` files — click each; the newer one is also the
 
 <aside class="positive">
 <b>What about the video shots later?</b> The publish chapter renders three
-shots through the same mechanism, but that farm is <b>prebaked</b>
-(<code>world/broker.py</code> answers on a fixed clock) — three real renders
-would cost you half an hour. Your thumbnail is the real thing in this lab:
-a genuine model call, genuinely slow, genuinely yours — and the SAME
-generator draws your video's real thumbnail from your chosen direction
-later, where you will approve it with one click instead of typing JSON.
+real shots through this same mechanism — <b>Veo 3.1</b>, a minute or three
+each, so a whole lap's worth of waiting happens at once and no process
+sits there for it. (<code>STUDIO_REAL_VIDEO=0</code> swaps in a prebaked
+farm that answers on a fixed clock, for a no-cost run.) Your thumbnail is
+the same kind of thing at small scale: a genuine model call, genuinely
+slow, genuinely yours — and the SAME generator draws your video's real
+thumbnail from your chosen direction later, where you will approve it with
+one click instead of typing JSON.
 </aside>
 
 One last thing to notice before you move on: **you will never type that
@@ -1242,7 +1250,9 @@ webhook handler, a nightly reconciler. In this app it simply runs when you
 approve, because after your last judgment there is nothing left that
 needs a person.
 
-*You should see* the card flip to **On the wall.** within half a minute:
+*You should see* the card flip to **On the wall.** within a few minutes —
+three Veo shots are rendering, and the worker delivers each one the moment
+it lands:
 
 ![Vibe Studio, the Now tab — On the wall: your video is published](codelab-img/s2c-published-v2.png)
 
@@ -1268,12 +1278,12 @@ sticker and all. Press **▶** on it to play:
 
 ![Vibe Studio, the Channel tab — your video on the wall, thumbnail first, ▶ to play](codelab-img/s2c-channel-play.png)
 
-👀 That is a genuine file: 1280×720 H.264, six seconds, written to
-`app/static/renders/final_<run>.mp4` by post-production and served by this
-same app. It was cut from the thumbnail you just approved — the render
-farm's own clips stay prebaked (see the 🪞 chapter's note), so this is the
-one artifact in the lab that is really encoded, and it is the one your
-audience "watches".
+👀 That is a genuine film: a 1.5-second title card cut from the thumbnail
+you approved, then the three Veo shots the desk rendered, stitched by
+post-production into `app/static/renders/final_<run>.mp4` (1280×720
+H.264, about 25 seconds) and served by this same app. Every frame of it
+was waited for by a row, not a process — and it is the one your audience
+"watches".
 
 ### The publish backstop
 
@@ -1335,8 +1345,8 @@ comes back.
 <aside class="positive">
 <b>How the silent room premiere works.</b> After the wall publish succeeds,
 <code>joinlogic.try_finish</code> calls
-<code>premiere.publish_to_room()</code>: ffmpeg packages your approved
-thumbnail into a real 6-second H.264 poster video (~5s), then ONE multipart
+<code>premiere.publish_to_room()</code>: the finished cut (title card +
+the three shots) goes up as-is, then ONE multipart
 POST — title, description, your display name, the video, the thumbnail —
 to <code>POST /api/events/&lt;room&gt;/videos</code>. No SDK, no session: a
 platform is a contract. Re-running the same lap REPLACES your entry (same
@@ -1369,7 +1379,9 @@ python -m agent.finish
 ```
 
 The terminal version announces its auto-approval loudly, then narrates
-every delivery as it happens:
+every delivery as it happens (the `qc FAIL` and `deadline` lines appear
+only when a shot really fails or stalls — with real renders that is the
+exception, not the script):
 
 ```
 ── human approval: thumbnail — AUTO-APPROVED [workshop mode] ──
@@ -2205,8 +2217,8 @@ by where its state lives, because its process is allowed to die.**
 
 ### Read more (optional)
 
-Where to go next — each is one seam in code you already read: real **Veo**
-inside `render_submit` · results by **webhook** (the same `answer()` call,
-over HTTP) · a **measures graph** beside `taste_graph` ·
+Where to go next — each is one seam in code you already read: results by
+**webhook** (the same `answer()` call, over HTTP) instead of polling the
+farm · a **measures graph** beside `taste_graph` ·
 **VertexAiSessionService** + **VertexAiMemoryBankService** for the cloud
 rungs.

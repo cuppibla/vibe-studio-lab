@@ -411,7 +411,7 @@ def now_body() -> str:
 <button class="ghost">Finish ▸</button></div></form>"""
         return busy_html + f"""
 <div class="card"><div class="h0">Rendering {done}/{len(st['shots'])}.</div>
-<div class="h0s">every wait is a row — the worker delivers each one by id, then this lap finishes itself</div>{fallback}</div>"""
+<div class="h0s">every wait is a row — the worker delivers each one by id, then this lap finishes itself{" · three Veo shots, a minute or three each" if config.REAL_VIDEO else ""}</div>{fallback}</div>"""
 
     if st.get("script"):
         ev_chips = ""

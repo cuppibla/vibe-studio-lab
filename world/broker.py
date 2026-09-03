@@ -1,16 +1,44 @@
-"""PREBAKED render broker (file-backed, survives process boundaries).
+"""The render farm - REAL by default (Veo 3.1), with a prebaked clock as the
+fallback. File-backed, survives process boundaries.
 
-Deterministic by submission order within a lap:
-  job 0      -> done after 2s (prebaked url)
-  job 1      -> FAILS once ("overexposed frames"); a resubmission succeeds after 2s
-  job 2      -> never completes (the deadline must rescue it)
-  job 3+     -> done after 2s   (repair resubmissions land here)
+REAL (STUDIO_REAL_VIDEO=1, the default): submit() starts ONE Veo long-running
+operation per shot and returns a receipt at once; poll() asks the operation
+whether it is done and, when it is, downloads the mp4 into app/static/renders.
+A shot takes a minute or three. This is the same shape as the thumbnail
+studio, at the scale of a real production: the agent's turn ended long ago,
+the operation lives on Google's side, the receipt lives in the session.
+
+PREBAKED (STUDIO_REAL_VIDEO=0, or Veo unreachable): a deterministic clock so
+the lab still runs with no video model and no cost -
+  job 0 -> done after 2s · job 1 -> FAILS once (the medic's cue) ·
+  job 2 -> never completes (the deadline's cue) · job 3+ -> done after 2s
+
 Pull-through advancement: state only moves when poll() is called - no daemon.
 """
 import json
+import os
 import time
 
 from agent import config
+
+VEO_MODEL = os.environ.get("STUDIO_VEO_MODEL", "veo-3.1-fast-generate-preview")
+RENDERS = config.ROOT / "app" / "static" / "renders"
+WEB = "/static/renders"
+# the same house style the thumbnail studio locks, spoken to a video model
+STYLE = ("Cozy low-poly faceted 3D animation, Monument Valley register, warm "
+         "pastel palette of cream, terracotta, sage green and sky blue, soft "
+         "bright daylight, handmade miniature diorama feel, one gentle camera "
+         "move. No text, no captions, no subtitles, no logos.")
+
+_client_ref = None
+
+
+def _client():
+    global _client_ref
+    if _client_ref is None:
+        from google import genai
+        _client_ref = genai.Client()      # env decides: Vertex via ADC, or an AI Studio key
+    return _client_ref
 
 
 def _load() -> dict:
@@ -24,21 +52,71 @@ def _save(d) -> None:
 
 
 def submit(prompt: str) -> str:
+    """One shot -> one receipt. Real mode starts the Veo operation right here
+    (a two-second call) and stores its NAME - that string is all a later
+    process needs to find the work again."""
     d = _load()
     idx = len(d["jobs"])
-    job = {"id": f"job_{idx}", "idx": idx, "prompt": prompt,
-           "status": "queued", "submitted_at": time.time(), "failed_before": False}
+    job = {"id": f"job_{idx}", "idx": idx, "prompt": prompt, "status": "queued",
+           "submitted_at": time.time(), "failed_before": False, "real": False}
+    if config.REAL_VIDEO:
+        try:
+            from google.genai import types as gt
+            op = _client().models.generate_videos(
+                model=VEO_MODEL, prompt=f"{prompt} {STYLE}",
+                config=gt.GenerateVideosConfig(
+                    aspect_ratio="16:9", resolution="720p", number_of_videos=1,
+                    negative_prompt="text, subtitles, captions, watermark, logo"))
+            job.update(real=True, op=op.name, model=VEO_MODEL)
+        except Exception as e:                 # no Veo here: the clock keeps the lab alive
+            job["note"] = f"veo unavailable ({str(e)[:90]}) - prebaked clock"
+            print(f"  [farm] {job['note']}")
     d["jobs"].append(job)
     _save(d)
     return job["id"]
 
 
+def _advance_real(j: dict) -> None:
+    """Ask the operation; when done, pull the bytes down next to the app."""
+    from google.genai import types as gt
+    op = _client().operations.get(gt.GenerateVideosOperation(name=j["op"]))
+    if not op.done:
+        return
+    err = getattr(op, "error", None)
+    resp = getattr(op, "response", None) or getattr(op, "result", None)
+    vids = (getattr(resp, "generated_videos", None) or []) if resp else []
+    if err or not vids:
+        j["status"] = "failed"
+        j["failed_before"] = True
+        j["reason"] = (str(err)[:140] if err else
+                       "the model returned no video (filtered or empty result)")
+        return
+    RENDERS.mkdir(parents=True, exist_ok=True)
+    out = RENDERS / f"veo_{j['id']}_{int(j['submitted_at'])}.mp4"
+    data = _client().files.download(file=vids[0].video)
+    if isinstance(data, (bytes, bytearray)) and data:
+        out.write_bytes(data)
+    elif getattr(vids[0].video, "video_bytes", None):
+        out.write_bytes(vids[0].video.video_bytes)
+    else:
+        j["status"], j["reason"], j["failed_before"] = "failed", "download returned nothing", True
+        return
+    j["status"], j["url"], j["finished_at"] = "done", f"{WEB}/{out.name}", time.time()
+
+
 def poll() -> list[dict]:
-    """Advance and return all jobs. Deterministic per the order table above."""
+    """Advance and return all jobs - real ones by asking Veo, prebaked ones by
+    the clock table above."""
     d = _load()
     now = time.time()
     for j in d["jobs"]:
         if j["status"] != "queued":
+            continue
+        if j.get("real"):
+            try:
+                _advance_real(j)
+            except Exception as e:             # a transient poll error is not a failed render
+                print(f"  [farm] poll hiccup on {j['id']}: {str(e)[:80]}")
             continue
         age = now - j["submitted_at"]
         if j["idx"] == 2:

@@ -41,4 +41,8 @@ STATE = RUNS / "state.json"
 BROKER = RUNS / "broker.json"
 WALL_DB = RUNS / "wall.db"
 DATASET = os.environ.get("STUDIO_DATASET", "vibestudio")
-DEADLINE_S = float(os.environ.get("STUDIO_DEADLINE_S", "14"))
+# the render farm: REAL Veo shots by default (a minute or three each), or a
+# prebaked clock (STUDIO_REAL_VIDEO=0) for a no-cost run - the deadline
+# follows the farm unless you set it yourself
+REAL_VIDEO = os.environ.get("STUDIO_REAL_VIDEO", "1").lower() in ("1", "true")
+DEADLINE_S = float(os.environ.get("STUDIO_DEADLINE_S", "420" if REAL_VIDEO else "14"))

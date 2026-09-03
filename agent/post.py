@@ -12,16 +12,21 @@ from google.genai import types as gtypes
 from . import config, drive, state
 
 def editor(node_input):
-    """Cut the shots together. The farm's clips are prebaked receipts, so the
-    real playable artifact is built from the thumbnail the studio generated
-    from YOUR brief - that is what plays on the Channel wall."""
+    """Cut the shots together: a title card from the thumbnail you approved,
+    then every shot the farm delivered - real Veo clips when the farm is
+    real. That film is what plays on the Channel wall and in the room."""
     from world import renderfarm
     st = state.load()
     urls = [s.get("url") for s in st["shots"] if s.get("url")]
-    final_ref = renderfarm.final_cut(st["run_id"], (st.get("thumb") or {}).get("ref", ""))
+    final_ref = renderfarm.final_cut(st["run_id"], (st.get("thumb") or {}).get("ref", ""), urls)
     if not final_ref:                       # no ffmpeg: an honest manifest, not a fake .mp4
         final_ref = f"runs/final_{st['run_id']}.txt"
         (config.ROOT / final_ref).write_text("PREBAKED CUT\n" + "\n".join(urls))
+    else:
+        ms = renderfarm.duration_ms(final_ref)   # the wall and the room get the TRUE length
+        if ms:
+            st["duration_ms"] = ms
+            state.save(st)
     return Event(output={"final_ref": final_ref, "n_shots": len(urls)})
 
 

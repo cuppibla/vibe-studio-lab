@@ -26,10 +26,13 @@ def _room() -> tuple[str, str, str]:
 
 
 def package(st) -> pathlib.Path:
-    """The prebaked farm gives us stand-in shots, so the premiere cut is the
-    real generated THUMBNAIL as a 6-second poster video - a genuine H.264
-    file the platform can transcode. (Swap in real Veo shots and this
-    function is where your real final cut gets stitched.)"""
+    """The premiere cut IS the final cut post-production stitched (title card
+    + the shots the farm delivered). Only if that file does not exist - no
+    ffmpeg, or a manifest-only run - does the studio fall back to a 6-second
+    poster made from the approved thumbnail."""
+    final = config.ROOT / "app" / "static" / "renders" / f"final_{st['run_id']}.mp4"
+    if final.exists():
+        return final
     out = config.RUNS / f"premiere_{st['run_id']}.mp4"
     if out.exists():
         return out
