@@ -31,15 +31,15 @@ from agent import config as _config
 # ── the vocabulary ───────────────────────────────────────────────────────────
 # key · label · the one-line gloss, in the codelab's voice
 STAGES = [
-    ("research",  "Research fans out",        "four feeds, joined into one cited bundle"),
-    ("direction", "You pick the direction",   "the form — the run suspends on you"),
-    ("policy",    "The policy gate",          "OK or BLOCK, before any money is spent"),
-    ("script",    "The script",               "3 shots, written quietly"),
-    ("render",    "The render farm",          "one Veo shot per row, plus your thumbnail"),
-    ("thumb",     "You approve the thumbnail","the human wait"),
-    ("join",      "The join",                 "every render delivered, and you"),
-    ("publish",   "The wall",                 "eval backstop, then the side effect"),
-    ("room",      "The VibeTube premiere",    "the room's wall, if Setup joined one"),
+    ("research", "Researching your topic",         "four feeds, joined into one cited bundle"),
+    ("direction","You pick the direction",         "the form — the run suspends on you"),
+    ("policy",   "Safety check on your direction", "OK or BLOCK, before any money is spent"),
+    ("script",   "Video prompt",                   "the title, the description and 3 shot prompts"),
+    ("render",   "Video generation",               "one Veo shot per prompt, plus your thumbnail"),
+    ("thumb",    "You approve the thumbnail",      "the human wait"),
+    ("join",     "Waiting for all 3 shots",        "every render delivered, and you"),
+    ("publish",  "Publish",                        "eval backstop, then the side effect"),
+    ("room",     "Premiering to VibeTube",         "the room's wall, if Setup joined one"),
 ]
 
 # Which worker verb drives which stage - used to blame the right row when a
@@ -228,7 +228,7 @@ def stage_states(st: dict, phase: str, busy_verb: str | None,
             if done["script"]:
                 status, note = PASS, (st.get("script") or {}).get("title", "")
             elif done["policy"] and policy.get("ok"):
-                status, note = NOW, "3 shots, written quietly"
+                status, note = NOW, "writing the title, description and shot prompts"
 
         # ── the render farm ──
         elif key == "render":
