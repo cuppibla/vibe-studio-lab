@@ -33,11 +33,21 @@ STYLE = ("Cozy low-poly faceted 3D animation, Monument Valley register, warm "
 _client_ref = None
 
 
+VEO_LOCATION = os.environ.get("STUDIO_VEO_LOCATION", "us-central1")
+
+
 def _client():
+    """Vertex via ADC (Cloud Shell) or an AI Studio key - like the rest of the
+    lab, except that Veo is served from a REGION, not the `global` endpoint
+    Gemini uses, so the Vertex client here pins one."""
     global _client_ref
     if _client_ref is None:
         from google import genai
-        _client_ref = genai.Client()      # env decides: Vertex via ADC, or an AI Studio key
+        if config.VERTEX:
+            _client_ref = genai.Client(vertexai=True, project=os.environ.get("GOOGLE_CLOUD_PROJECT"),
+                                       location=VEO_LOCATION)
+        else:
+            _client_ref = genai.Client()
     return _client_ref
 
 
@@ -93,14 +103,21 @@ def _advance_real(j: dict) -> None:
         return
     RENDERS.mkdir(parents=True, exist_ok=True)
     out = RENDERS / f"veo_{j['id']}_{int(j['submitted_at'])}.mp4"
-    data = _client().files.download(file=vids[0].video)
-    if isinstance(data, (bytes, bytearray)) and data:
-        out.write_bytes(data)
-    elif getattr(vids[0].video, "video_bytes", None):
-        out.write_bytes(vids[0].video.video_bytes)
-    else:
+    video = vids[0].video
+    data = getattr(video, "video_bytes", None)          # Vertex hands the bytes back inline
+    if not data:
+        try:
+            data = _client().files.download(file=video)   # the AI Studio path: a Files-API download
+        except Exception as e:
+            data = None
+            j["download_error"] = str(e)[:100]
+    if not data and getattr(video, "uri", ""):          # a GCS uri (output_gcs_uri was set)
+        j["status"], j["reason"], j["failed_before"] = "failed", f"video landed in GCS ({video.uri}) - not fetched", True
+        return
+    if not data:
         j["status"], j["reason"], j["failed_before"] = "failed", "download returned nothing", True
         return
+    out.write_bytes(data)
     j["status"], j["url"], j["finished_at"] = "done", f"{WEB}/{out.name}", time.time()
 
 
