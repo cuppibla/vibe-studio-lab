@@ -283,10 +283,13 @@ spinner, no progress bar. The turn is over:
 
 ![The wait, as data — the call, the pending receipt, WAITING](codelab-img/s1-thumb-waiting.png)
 
-👀 Click the `thumb_submit` call: its response is literally
+👀 Click the second `thumb_submit` chip — the one with the ✓, the
+response — and read it in the left panel: it is literally
 `{"status": "pending", "job_id": "thm_…", …}`. `pending` is not an error and
 not a promise object — it is a **value inside a normal response**, sitting
-in the session log.
+in the session log:
+
+![The response, opened — status: pending is a plain value in the event log](codelab-img/s1-thumb-pending.png)
 
 And this is the part worth pausing on: **a real job is running right now, in
 a process the agent does not own.** `thumb_submit` started a detached
@@ -296,7 +299,9 @@ invocation ended honestly; your thumbnail is being drawn anyway.
 
 👀 One more thing to notice for later: under that call sits a small box,
 **"Enter your response…"** — that is where this wait will END, and what you
-type into it will be a *decision*. Leave it alone for one more minute.
+type into it will be a *decision*. Leave it alone for one more minute:
+
+![The response box under the pending call — the wait ends here, later](codelab-img/s1-thumb-responsebox.png)
 
 ### Kill it
 
@@ -343,12 +348,14 @@ text would be asking for garble.)
 
 👉🔬 Like it? Then say so where it counts. Under the pending `thumb_submit`
 call sits that small input, **"Enter your response…"** — ADK's built-in
-way to answer a long-running call. Type exactly this and press the send
-arrow:
+way to answer a long-running call. Type exactly this into it and press
+**Enter**:
 
 ```
 {"status": "approved"}
 ```
+
+![Typed into the response box, not the chat box — press Enter](codelab-img/s1-thumb-typed.png)
 
 *You should see* the desk wake up and reply **THUMBNAIL APPROVED**:
 
@@ -536,7 +543,11 @@ code, not in a prompt.)
 
 ### Look at what you approved
 
-*Our run's turn 1, then "make the light warmer":*
+*Our run's turn 1, then "make the light warmer, and change the words to:
+Sock Emergency". To see YOUR two: in **tab 1**, the drafts folder you
+opened earlier (`cloudshell edit ~/vibe-studio-lab/app/static/thumbs/drafts`)
+now holds two `_titled.png` files — click each; the newer one is also the
+`user:thumb_draft` URL you just saw in the State tab.*
 
 ![Turn 1 and turn 2 — the scene survived, because a file did](codelab-img/s2-thumb-multiturn.png)
 
@@ -770,8 +781,9 @@ exception — it always holds what the previous node returned, which here is
 your form answer. That is the whole contract: write with
 `Event(state={...})`, read by declaring a parameter with the same name.
 
-👉🔬 Switch the dropdown to **`stage2_direction`** and send the same idea
-again:
+👉🔬 Still in **adk web** (the port-8000 Preview tab): open the app
+dropdown at the top left, switch to **`stage2_direction`**, then type the
+same idea into the chat box at the bottom and send it:
 
 ```
 a tiny robot doing laundry at midnight
@@ -811,8 +823,12 @@ from the **NEW SESSION ▾** picker — and there is the form, still standing:
 survived a dead server exactly the way your thumbnail's wait did, because
 it is the same mechanism.
 
-👉🔬 Now answer it — type `1` into the pick field (or the number you like
-best) and press **Submit**. The run continues: `persist_direction`
+👉🔬 Now answer it — type `1` into the **pick** field (or the number you
+like best) and press **Submit**:
+
+![The form, answered — 1 in the pick field, then Submit](codelab-img/st2-form-typed.png)
+
+The run continues: `persist_direction`
 resolves your pick against the `candidates` in state (nobody passed them
 in — the node's parameter binds from state) and writes `direction`. (On
 resume the research nodes re-ran — they only read, so re-running is safe.
@@ -916,8 +932,14 @@ explainable in lineage afterwards. So this one is plain Python — and the
 graph does not care which kind it is: a node returned a word, an edge
 matched it.
 
-👉🔬 Switch the dropdown to **`stage3_router`**, send the same idea, and
-when the form arrives pick `1` and **Submit**. *You should see*
+👉🔬 In **adk web**, switch the app dropdown to **`stage3_router`**, type
+the same idea into the chat box and send it:
+
+```
+a tiny robot doing laundry at midnight
+```
+
+When the form arrives, type `1` in the pick field and press **Submit**. *You should see*
 `route: OK` on the policy node's event — and in adk web's graph panel,
 `policy_check` is drawn as a **diamond** with two labelled exits, the
 OK edge lit and `quarantine` greyed out. A router looks different from a
@@ -1077,13 +1099,19 @@ underneath it:
 is already selected**, so agreeing costs one click. Pick the one you like
 (or open "write my own"), press **Continue ▸** — the footer names what
 that click really is: one `function_response`, the same hinge as your
-thumbnail approval.
+thumbnail approval:
+
+![The direction card — candidate 1 already picked, Continue is the one click](codelab-img/s2-direction-click.png)
 
 *You should see* the graph roll on WITHOUT you: `persist_direction`, then
-`policy_check` taking its **OK** edge, then the quiet script, and the card
-flip to **Direction cleared the policy gate** — and then renders starting
-by themselves. Stop here; the video is cooking. The next chapter is the
-third touch.
+`policy_check` taking its **OK** edge, then the quiet script — and within a
+few seconds the card reads **Rendering 0/3**: three shots submitted to the
+farm, and the thumbnail being drawn from your direction, none of it asked
+of you:
+
+![Renders started by themselves — every wait is a row, and this lap will finish itself once you judge the thumbnail](codelab-img/s2c-rendering.png)
+
+Stop here; the video is cooking. The next chapter is the third touch.
 
 *What you learned:* the stages were never warm-ups — they were the real
 graph, met in pieces; the real edge list was a recital; and the product is the
@@ -1426,9 +1454,10 @@ address —
 👀 One law, one keystroke: the process may die; the state does not. Reading
 that ten times is worth less than killing something once.
 
-👉💻 Go to **tab 3** — the terminal running Vibe Studio — and press
-**Ctrl+C**. The server is gone; the browser tab goes blank on its next
-refresh.
+👉💻 Go to **tab 3** — the Cloud Shell terminal tab where you ran
+`uvicorn app.main:app --port 4600` in 🗺️ (its last lines are uvicorn's
+request log, `GET / … 200 OK`) — click into it and press **Ctrl+C**. The
+server is gone; the Vibe Studio browser tab goes blank on its next refresh.
 
 👉💻 That terminal is free now, so use it to look at what outlived the
 server. This folder **is** your durable state:
@@ -1528,7 +1557,9 @@ box is still filled — try it.)
 
 👉🌐 Press **Start next lap ▸** (keep the suggestion or type over it) and
 run your channel's second video the way you now know: pick a direction,
-approve the thumbnail. Two clicks of judgment, everything else automatic.
+approve the thumbnail. Two clicks of judgment, everything else automatic:
+
+![Start next lap — the button on the published card, idea box already filled](codelab-img/s3-nextlap-click.png)
 
 👉🔬 See the same thing in the raw store — browse only, no commands, no
 typing, five clicks:
@@ -1538,6 +1569,8 @@ typing, five clicks:
 2. Click the browser's address bar, go to the very END of the URL, add
    `&userId=creator`, press Enter. (Your own chats live under user `user`;
    the app's laps live under user `creator` — this switches the view.)
+
+![Step 2 — the only edit is at the end of the URL](codelab-img/s3-userid-bar.png)
 3. Click the **NEW SESSION ▾** picker at the top.
 4. The session list opens — these are the app's laps. Click the newest
    `run_…_wf` session (largest number):
@@ -1750,7 +1783,7 @@ card once the next lap starts — **the graph has a new node.** The map is
 dumped from the live `Workflow` object, so it cannot help but show what
 you just did:
 
-![The map, grown — read_graph joins the fan-out the moment the edge exists](codelab-img/s4-map-grown.png)
+![The map, grown — read_graph (circled) joins the fan-out the moment the edge exists](codelab-img/s4-map-grown.png)
 
 ### Watch the agent use it — right now
 
