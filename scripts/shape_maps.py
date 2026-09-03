@@ -1,10 +1,9 @@
 """Author tool: render the codelab's STAGE pictures from the REAL workflow
 objects in this repo - never hand-drawn.
 
-  1 the fan-out   stage1_fanout   the research department, drawn
-  2 the pause     stage2_pause    + topic desk + the human door
-  3 the script    stage3_script   the COMPLETE lap graph
-  4 the gates     stage4_gates    the publish decision core, on a test bench
+  1 the fan-out    stage1_fanout     the research department, drawn (2 readers)
+  2 the direction  stage2_direction  + 3 candidates in state + the human door
+  3 the router     stage3_router     + the policy gate = the complete base graph
 
 Run: python scripts/shape_maps.py     (writes codelab-img/stage-*.svg)
 """
@@ -82,77 +81,64 @@ def dump(wf):
     return [(e.from_node.name, e.to_node.name, e.route) for e in wf.graph.edges]
 
 
-READERS = {"scan_trends": (1, 0), "read_memory": (1, 1),
-           "read_backcatalog": (1, 2), "read_graph": (1, 3)}
+READERS = {"scan_trends": (1, 0), "read_backcatalog": (1, 1)}
 READER_KINDS = {n: "read" for n in READERS}
-READER_SUBS = {"scan_trends": "the control group — data on day 1",
-               "read_memory": "honest empty until 🧠",
-               "read_backcatalog": "fills after lap 1 publishes",
-               "read_graph": "honest empty until 🌍"}
+READER_SUBS = {"scan_trends": "what the room watches",
+               "read_backcatalog": "fills after your first publish"}
 
 
 def main():
     from stage1_fanout.agent import root_agent as s1
-    from stage2_pause.agent import root_agent as s2
-    from stage3_script.agent import root_agent as s3
-    from stage4_gates.agent import root_agent as s4
+    from stage2_direction.agent import root_agent as s2
+    from stage3_router.agent import root_agent as s3
     from agent.post import wf_post
 
     (OUT / "stage-1-fanout.svg").write_text(svg(
-        dump(s1), {"__START__": (0, 1.5), **READERS,
-                   "join_research": (2, 1.5), "compose_bundle": (3, 1.5)},
-        "stage 1 · the research department — adk web app `stage1_fanout`",
+        dump(s1), {"__START__": (0, 0.5), **READERS,
+                   "join_research": (2, 0.5), "compose_bundle": (3, 0.5)},
+        "stage 1 · the research department — adk web app `stage1_fanout` (two readers, for now)",
         kinds={**READER_KINDS, "join_research": "join"},
-        subs={**READER_SUBS, "join_research": "holds for all four",
+        subs={**READER_SUBS, "join_research": "waits for every wired feed",
               "compose_bundle": "one bundle out"}, routes=False))
 
-    (OUT / "stage-2-pause.svg").write_text(svg(
-        dump(s2), {"__START__": (0, 1.5), **READERS,
-                   "join_research": (2, 1.5), "compose_bundle": (3, 1.5),
-                   "topic_gate": (4, 1.5), "creative_gate": (5, 1.5),
-                   "persist_prefs": (6, 1.5)},
-        "stage 2 · + the topic desk and the human door — adk web app `stage2_pause`",
-        kinds={**READER_KINDS, "join_research": "join", "topic_gate": "agent",
-               "creative_gate": "human"},
-        subs={"topic_gate": "one call, a typed Brief",
-              "creative_gate": "the run STOPS here",
-              "persist_prefs": "your choices, into state"}, routes=False,
-        cell_w=210))
+    (OUT / "stage-2-direction.svg").write_text(svg(
+        dump(s2), {"__START__": (0, 0.5), **READERS,
+                   "join_research": (2, 0.5), "compose_bundle": (3, 0.5),
+                   "propose_directions": (4, 0.5), "direction_gate": (5, 0.5),
+                   "persist_direction": (6, 0.5)},
+        "stage 2 · three candidates, then the human door — adk web app `stage2_direction`",
+        kinds={**READER_KINDS, "join_research": "join",
+               "propose_directions": "agent", "direction_gate": "human"},
+        subs={"propose_directions": "3 candidates, into state",
+              "direction_gate": "pick 1 / 2 / 3 — the run STOPS",
+              "persist_direction": "your pick, resolved"}, routes=False,
+        cell_w=214))
 
-    (OUT / "stage-3-script.svg").write_text(svg(
-        dump(s3), {"__START__": (0, 1.5), **READERS,
-                   "join_research": (2, 1.5), "compose_bundle": (3, 1.5),
-                   "topic_gate": (4, 1.5), "creative_gate": (5, 1.5),
-                   "persist_prefs": (6, 1.5), "scripter": (7, 1.5),
-                   "store_script": (8, 1.5)},
-        "stage 3 · the COMPLETE lap graph — the edge list you will write at the EDGES hole",
-        kinds={**READER_KINDS, "join_research": "join", "topic_gate": "agent",
-               "creative_gate": "human", "scripter": "agent"},
-        subs={"scripter": "writes the 3-shot script",
-              "store_script": "files it, with citations"}, routes=False,
-        cell_w=200))
-
-    (OUT / "stage-4-gates.svg").write_text(svg(
-        dump(s4), {"__START__": (0, 1), "try_title": (1, 1), "policy_check": (2, 1),
-                   "eval_gate": (3, 0.4), "quarantine": (3, 1.8),
-                   "hold_for_publish": (4, 0), "rejected": (4, 1)},
-        "stage 4 · the publish decision core, on a test bench — adk web app `stage4_gates`",
-        kinds={"try_title": "harness", "hold_for_publish": "harness"},
-        subs={"try_title": "your typed title, under test",
-              "policy_check": "reads policy_words.txt NOW",
-              "eval_gate": "3 conduct checks",
-              "hold_for_publish": "publisher's seat, filled at publish"},
-        cell_w=300))
+    (OUT / "stage-3-router.svg").write_text(svg(
+        dump(s3), {"__START__": (0, 0.7), **READERS,
+                   "join_research": (2, 0.7), "compose_bundle": (3, 0.7),
+                   "propose_directions": (4, 0.7), "direction_gate": (5, 0.7),
+                   "persist_direction": (6, 0.7), "policy_check": (7, 0.7),
+                   "scripter": (8, 0.2), "quarantine": (8, 1.6),
+                   "store_script": (9, 0.2)},
+        "stage 3 · the policy gate, before any money — adk web app `stage3_router`",
+        kinds={**READER_KINDS, "join_research": "join",
+               "propose_directions": "agent", "direction_gate": "human",
+               "scripter": "agent"},
+        subs={"policy_check": "reads policy_words.txt NOW",
+              "quarantine": "the polite stop",
+              "scripter": "runs quietly"},
+        cell_w=196))
 
     (OUT / "shape-4-post.svg").write_text(svg(
-        dump(wf_post), {"__START__": (0, 1), "editor": (1, 1), "policy_check": (2, 1),
-                        "eval_gate": (3, 0.4), "quarantine": (3, 2), "publisher": (4, 0),
-                        "rejected": (4, 1)},
-        "the same gates, for real — agent/post.py, the workflow that ships your video",
-        subs={"editor": "cuts the shots", "policy_check": "reads policy_words.txt",
-              "eval_gate": "3 conduct checks", "publisher": "the side effect"},
-        cell_w=300))
-    print("wrote 4 stage svgs + shape-4-post")
+        dump(wf_post), {"__START__": (0, 0.7), "editor": (1, 0.7),
+                        "eval_gate": (2, 0.7), "publisher": (3, 0),
+                        "rejected": (3, 1.4)},
+        "the publish backstop — agent/post.py, one eval in front of the side effect",
+        subs={"editor": "cuts the shots", "eval_gate": "3 conduct checks",
+              "publisher": "the side effect"},
+        cell_w=330))
+    print("wrote 3 stage svgs + shape-4-post")
 
 
 if __name__ == "__main__":

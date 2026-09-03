@@ -15,7 +15,10 @@
 Chains live HERE, not in the graph: they cross the world (renders, publish),
 and the graph never waits for the world.
 """
+import json
+import os
 import sys
+import time
 
 from . import answer as answer_cli
 from . import approve as approve_cli
@@ -31,12 +34,33 @@ def direction(argv):
     # phase "blocked": the polite stop - the card explains, nothing to chain
 
 
+def _wait_for_thumb(timeout_s: int = 180) -> bool:
+    """Approve can be pressed while the render chain is still generating the
+    thumbnail. The precondition for answering is that thumb_desk has actually
+    rung - i.e. a pending approval call exists. Wait for THAT, not for a pid:
+    a signal, not a race."""
+    st = state.load()
+    sid = f"{st.get('run_id')}_thumb"
+    for _ in range(timeout_s):
+        if drive.run(drive.pending(sid)):
+            return True
+        time.sleep(1)
+    return False
+
+
 def ship():
+    if state.load().get("published"):
+        print("already published — nothing to ship")
+        return
+    if not _wait_for_thumb():
+        print("no thumbnail to approve — is a lap running?")
+        return
     approve_cli.main()
     finish_cli.main()
 
 
 def rethumb():
+    _wait_for_thumb()
     from world import thumbstudio
     st = state.load()
     run_id = st.get("run_id")

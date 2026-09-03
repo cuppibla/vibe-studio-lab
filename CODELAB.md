@@ -23,10 +23,11 @@ the audience answers tomorrow. So the agent's real job is **waiting well** —
 pause without keeping a process alive, ask you things mid-flight, and
 remember what matters when it comes back.
 
-Here is the graph you will grow, run, and publish through — every box is
-real code you will read:
+Here is the whole production line you will grow, run, and publish
+through — every box is real code you will read, and the two grey feeds
+are the ones YOU wire in, one edge each, in the final act:
 
-![The workflow](codelab-img/d1-workflow.png)
+![The production line](codelab-img/d10-productionline.png)
 
 The lab is **three acts**, and every chapter belongs to exactly one:
 
@@ -1682,14 +1683,16 @@ type nothing):
 2. Press **Start a lap ▸** (take the suggestion chip or leave the box
    empty) and wait ~20 s — watch THREE research nodes light up together
    on the grown map.
-3. The direction card appears. Read the candidates' evidence chips — a
-   `graph#1` chip, highlighted:
+3. The direction card appears. Its candidates now carry evidence chips —
+   `trends` and, once your own watch rows are in the graph, `graph#N`:
 
-![The candidates now carry graph# evidence — readings, cited by name](codelab-img/s4-evidence-graph.png)
+![The candidates now carry evidence chips — readings the agent may cite by name](codelab-img/s4-evidence-graph.png)
 
-   Your agent just cited, by name, a reading from the graph you built two
-   minutes ago. You never asked it anything: once the edge exists, the
-   research step queries the graph on every lap, automatically.
+   The point is not which chip shows on any one run — it is that
+   `read_graph` now runs on EVERY lap and its readings are available to
+   cite. You never asked for that; the edge you added did it. (See the
+   World tab for the readings themselves — `graph#1` with the real
+   drop-off number your briefs draw on.)
 4. Finish the video: pick a direction, press **Continue ▸**, and when the
    thumbnail card comes, press **Approve ▸** — the Memory Bank chapter 🧠
    wants this lap's audience data anyway.

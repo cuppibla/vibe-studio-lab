@@ -75,6 +75,15 @@ def graph_edges() -> list[tuple[str, str]]:
             ("scripter", "store_script")]
 
 
+def wired_nodes() -> set:
+    """Only nodes that actually appear in an edge exist on the map - an
+    unwired feed simply is not drawn yet, so the map GROWS when you add it."""
+    ns = {"__START__"}
+    for a, b in graph_edges():
+        ns.add(a); ns.add(b)
+    return ns
+
+
 def node_states(st: dict, phase: str) -> dict[str, str]:
     """done · now · you · idle - each one read from what the run actually wrote."""
     past = phase in ("form", "blocked", "scripted", "published")
@@ -141,7 +150,10 @@ def render(st: dict, phase: str, avatar_url: str) -> str:
                      f'{x2:.0f},{y2:.0f}" fill="none" stroke="{DONE if lit else LINE}" '
                      f'stroke-width="{2.5 if lit else 2}"/>')
 
+    live = wired_nodes()
     for node, kind in states.items():
+        if node not in live:
+            continue
         cx, cy = _xy(node)
         if node == "__START__":
             parts.append(f'<circle cx="{cx:.0f}" cy="{cy:.0f}" r="20" '

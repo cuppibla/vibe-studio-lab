@@ -168,6 +168,16 @@ def spawn(verb: str, *args) -> None:
     BUSY.write_text(json.dumps({"verb": verb, "pid": p.pid, "at": time.time()}))
 
 
+def spawn_force(verb: str, *args) -> None:
+    """Like spawn(), but for the buttons that must never be swallowed by a
+    still-running worker (Approve/Regenerate). The previous job's pid rides
+    along in the environment; the child waits for it before starting - see
+    agent/auto.py _wait_for_pid."""
+    p = subprocess.Popen([PY, "-m", f"agent.{verb}", *args], cwd=config.ROOT,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    BUSY.write_text(json.dumps({"verb": verb, "pid": p.pid, "at": time.time()}))
+
+
 def spawn_sh(verb: str, script: str) -> None:
     """Same contract as spawn(), for the one step that IS a shell script:
     the World button runs `bash scripts/graph.sh`, unbuffered, into a log the
@@ -603,13 +613,13 @@ def ui_render():
 
 @app.post("/ui/approve")
 def ui_approve():
-    spawn("auto", "ship")
+    spawn_force("auto", "ship")
     return RedirectResponse("/", status_code=303)
 
 
 @app.post("/ui/rethumb")
 def ui_rethumb():
-    spawn("auto", "rethumb")
+    spawn_force("auto", "rethumb")
     return RedirectResponse("/", status_code=303)
 
 
