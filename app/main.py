@@ -30,13 +30,7 @@ from world import simulator  # noqa: E402
 app = FastAPI(title="Vibe Studio")
 app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
-TRENDS = [
-    {"topic": "tiny robots doing household chores (badly)", "heat": 91},
-    {"topic": "pets reviewing kitchen gadgets", "heat": 84},
-    {"topic": "desk toys with secret lives after midnight", "heat": 77},
-    {"topic": "speedrunning the most boring chore you know", "heat": 66},
-    {"topic": "kitchen science that looks illegal in 10 seconds", "heat": 58},
-]
+from world.platform import SEED_TRENDS as TRENDS  # noqa: E402  (one list, two readers)
 
 # ══════════════════════════ the Wall API ══════════════════════════
 
@@ -190,6 +184,18 @@ def spawn_sh(verb: str, script: str) -> None:
     proc = subprocess.Popen(["bash", script], cwd=config.ROOT, env=env,
                             stdout=log, stderr=subprocess.STDOUT)
     BUSY.write_text(json.dumps({"verb": verb, "pid": proc.pid, "at": time.time()}))
+
+
+def spawn_logged(verb: str) -> None:
+    """spawn(), but the command's output goes to runs/<verb>_run.log so the
+    page can show it - for the one-time CONNECT steps (the bank)."""
+    if busy():
+        return
+    log = (config.RUNS / f"{verb}_run.log").open("w")
+    env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+    p = subprocess.Popen([PY, "-m", f"agent.{verb}"], cwd=config.ROOT, env=env,
+                         stdout=log, stderr=subprocess.STDOUT)
+    BUSY.write_text(json.dumps({"verb": verb, "pid": p.pid, "at": time.time()}))
 
 
 def busy() -> str | None:
@@ -485,10 +491,7 @@ def channel_page(request: Request):
 <span class="vt">{v['title']}</span><span class="vp">{avg:.0f}<small>% · {views} views</small></span></div></div>""")
             if i == 0:
                 lin = json.loads(v["lineage"])
-                ch = state.load().get("choices") or {}
-                chips = "".join(f'<span class="mchip">{x}</span>' for x in
-                                [ch.get("character", ""), ch.get("style", "")] if x)
-                chips += "".join(f'<span class="mchip mm">{m}</span>' for m in lin.get("memory_refs", []))
+                chips = "".join(f'<span class="mchip mm">{m}</span>' for m in lin.get("memory_refs", []))
                 chips += "".join(f'<span class="mchip mg">{g}</span>' for g in lin.get("graph_refs", []))
                 made = f'<div class="made"><span class="k">MADE WITH</span>{chips or "<span class=mchip>cold start — trends only</span>"}</div>'
     body = f"""<div class="card">
@@ -516,6 +519,25 @@ def state_page(request: Request):
     mem = st.get("memory_facts", [])
     mem_html = "".join(f'<div class="note">{m["fact"][:70]}</div>' for m in mem[:3]) or \
                '<div class="note">nothing learned yet — publish, then learn</div>'
+    # the bank's CONNECT step is a one-time button on this row - the same
+    # rule as the map: the button exists only while there is nothing to show
+    from agent import memory as _memory
+    bank_name = _memory.engine_name()
+    bank_log = config.RUNS / "bank_run.log"
+    if busy() == "bank":
+        mem_html = ('<div class="note"><span class="dot"></span> connecting — creating an '
+                    'Agent Engine to host the bank (~30s, one-time)…</div>')
+    elif bank_name:
+        tail = bank_log.read_text()[-700:] if bank_log.exists() else ""
+        mem_html = (f'<div class="note mono" style="font-size:11.5px">{bank_name}</div>'
+                    + (f'<pre class="mono" style="font-size:11px;line-height:1.5;white-space:pre-wrap;'
+                       f'margin:6px 0 4px;color:#5C5346">{tail}</pre>' if tail else "")
+                    + mem_html)
+    else:
+        mem_html = ('<form method="post" action="/ui/bank"><div style="text-align:left">'
+                    '<button class="go">Connect the bank ▸</button><br>'
+                    '<span style="font-size:12px;color:var(--sub)">python -m agent.bank, as a button '
+                    '— one-time, ~30s</span></div></form>')
     rows = f"""
 <div class="row" style="opacity:.45"><img src="/static/art/gem-1.png"><div class="rn"><b>Turn</b><span>context window</span></div><div class="rv">gone when the turn ends</div><span class="life">seconds</span></div>
 <div class="row"><img src="/static/art/gem-2.png"><div class="rn"><b>Session</b><span>sessions.db</span></div><div class="rv mono">{sess}</div><span class="life">outlives the process</span></div>
@@ -650,3 +672,9 @@ def ui_finish():
 def ui_learn():
     spawn("learn")
     return RedirectResponse("/", status_code=303)
+
+
+@app.post("/ui/bank")
+def ui_bank():
+    spawn_logged("bank")
+    return RedirectResponse("/state", status_code=303)

@@ -68,6 +68,7 @@ piece right before its first use.
 - **What** — clone, install, and prove the toolchain is green. Nothing gets booted here.
 - **Why** — every server in this lab starts right before the first step that needs it, so when a surface opens you know exactly which command owns it.
 - **How** — one command block → read the map.
+- **Surfaces** — 💻 tab 1 only.
 
 ### Who is who
 
@@ -94,6 +95,29 @@ python scripts/preflight.py
 
 *You should see* every line tick (Vibe Studio reports `not running yet` —
 correct: the app chapter 🗺️ boots it), ending in `PREFLIGHT GREEN`.
+
+### Three tabs, five arrows
+
+The whole lab happens on three terminal tabs and two browser previews.
+You will open them one at a time, right before their first use — this
+table is only so you always know where you are:
+
+| tab | what runs there | opened in |
+|---|---|---|
+| **tab 1** | your work terminal — you touch it four times in the whole lab: this install, opening the drafts folder, editing two lines in `graph.py`, and the optional gates | now |
+| **tab 2** | `adk web` on port 8000 — the inspector: raw events, the State tab, the small stage apps | ⏳ |
+| **tab 3** | `uvicorn` on port 4600 — Vibe Studio, the product: buttons, the form, the live map | 🗺️ |
+
+And every step starts with an arrow that tells you WHERE to do it:
+
+| arrow | means |
+|---|---|
+| 👉💻 | type in a terminal — **tab 1** unless the step names another tab |
+| 👉🔬 | click or type in **adk web** (the port-8000 Preview) |
+| 👉🌐 | click in **Vibe Studio** (the port-4600 Preview) |
+| 👉📖 | read the code shown right here in the codelab — nothing to open |
+| 👉✏️ | edit a file in the Cloud Shell Editor — happens exactly twice, one line each |
+| 👀 | nothing to do; look and read |
 
 ### Join the room (optional — live workshops)
 
@@ -159,17 +183,12 @@ for YOUR video idea.
 - **What** — ask a raw agent for a draft thumbnail, watch it stop without finishing while a real image model works elsewhere, kill the server to prove the wait survived — then look at the picture and give the word that ends the wait: your approval.
 - **Why** — the lab's load-bearing idea in one chapter: *pending is a value in the session log, not a thread in memory* — and every wait ends the same way: someone answers by id. Here that someone is you, and your answer is a SIGN-OFF. That is all "human in the loop" is: the work pauses until a person has judged it.
 - **How** — read the agent → boot adk web → describe your video idea → watch WAITING → kill and restart → look at the draft → approve it.
+- **Surfaces** — 💻 tab 2 (start adk web, one Ctrl+C) · 🔬 the port-8000 Preview · 💻 tab 1 once, to open the drafts folder.
 
 ### Who you are about to talk to
 
-👉💻 In **tab 1**, open `agent.py` in the Cloud Shell Editor by running:
-
-```console
-cloudshell edit ~/vibe-studio-lab/vibestudio/agent.py
-```
-
-👉📖 In `vibestudio/agent.py` — read only, nothing to change — the whole
-file is two meaningful lines:
+👉📖 `vibestudio/agent.py` — read here, nothing to open — is two
+meaningful lines:
 
 ```python
 from agent.desk import render_desk
@@ -180,16 +199,10 @@ root_agent = render_desk
 - `root_agent = render_desk` — adk web looks for a folder with an
   `agent.py` exporting `root_agent`; that is the entire discovery
   convention, and the folder name (`vibestudio`) becomes the app name.
-- `render_desk` itself lives in `agent/desk.py` — open that one too.
+- `render_desk` itself lives in `agent/desk.py`.
 
-👉💻 In **tab 1**, open `desk.py` in the Cloud Shell Editor by running:
-
-```console
-cloudshell edit ~/vibe-studio-lab/agent/desk.py
-```
-
-👉📖 In `desk.py` — read only, nothing to change — look at the tool list.
-This line is the chapter's vocabulary word:
+👉📖 In `agent/desk.py` — read here, nothing to open — the tool list holds
+the chapter's vocabulary word:
 
 ```python
     tools=[LongRunningFunctionTool(thumb_submit),
@@ -206,7 +219,7 @@ meet it alone, to see one wait clearly.
 
 ### What you are about to do, in order
 
-1. read the 8-line agent you are about to talk to (editor, **tab 1**)
+1. read the 8-line agent you are about to talk to (right here)
 2. start `adk web` in a **second** terminal tab — and leave that tab alone
 3. type one line: `Draft a thumbnail: <your video idea>`
 4. watch it stop at **WAITING** — and read why
@@ -315,9 +328,14 @@ adk web . --port 8000 --allow_origins "*" --reload_agents --session_service_uri 
 ```
 
 👉🔬 Reload the Preview, pick **`vibestudio`** again, then reopen your
-session from the **NEW SESSION ▾** picker. Everything is still there: the
-call, the pending receipt, your unanswered question. **The wait is a row in
-`runs/sessions.db`. It does not need any process to exist.**
+session from the **NEW SESSION ▾** picker at the top — it is the one named
+after your message:
+
+![The picker after the restart — your session, still there](codelab-img/s1-session-picker.png)
+
+Everything is still there: the call, the pending receipt, your unanswered
+question. **The wait is a row in `runs/sessions.db`. It does not need any
+process to exist.**
 
 ### Look, then approve — you are the human in the loop
 
@@ -446,6 +464,7 @@ Duration: 0:05:00
 - **What** — didn't love something about the draft? Ask for ONE change, get the same scene back with just that change — then read why: the state that carried it, in the order that matters.
 - **Why** — multi-turn refinement is fragile, because the process that drew turn 1 is allowed to be GONE by turn 2. **Agent state is what makes multi-turn stable**: the continuity lives at an address outside the process.
 - **How** — one change request → look → approve → ask "why is it still the same scene?" → read the state callback → see it in the State tab → read the world's own ledger → compare the two drafts.
+- **Surfaces** — 🔬 adk web · the drafts folder already open in the Editor.
 
 ### Turn 2 — change it without describing it again
 
@@ -610,6 +629,7 @@ Duration: 0:11:00
 - **What** — run the WHOLE channel as one prompt and feel exactly where it hurts; then grow the channel's real graph out of it, stage by stage, in the dev UI you already have open.
 - **Why** — "why a workflow" should be felt before it is told. And there is only ONE workflow in this lab — the channel's: every stage below is that graph, met in pieces. The small apps import the same node functions the finished channel runs.
 - **How** — same adk web tab, walk the app dropdown: `stage0_prompt` → `stage1_fanout` → `stage2_direction`. Use the SAME video idea as your thumbnail — it rides through every stage and becomes your published video.
+- **Surfaces** — 🔬 adk web · 💻 tab 2 (one Ctrl+C + restart). Tab 1 is not touched.
 
 ### The production line you are about to grow
 
@@ -643,13 +663,7 @@ adk web . --port 8000 --allow_origins "*" --reload_agents --session_service_uri 
 **top left** is the app dropdown that says `vibestudio`. Switch it to
 **`stage0_prompt`**.
 
-👉💻 In **tab 1**, open the file — read the instruction before you run it:
-
-```console
-cloudshell edit ~/vibe-studio-lab/stage0_prompt/agent.py
-```
-
-👉📖 In `stage0_prompt/agent.py` — read only, nothing to change — the
+👉📖 `stage0_prompt/agent.py` — read here, nothing to open — its
 instruction is the whole channel as SENTENCES:
 
 *check what is trending · look at your back catalog · propose a direction
@@ -688,7 +702,9 @@ graph will remove:
 skip the questions, just describe the video
 ```
 
-   It obliges. Nothing enforces the ask — it was only ever a sentence.
+   It obliges. Nothing enforces the ask — it was only ever a sentence:
+
+![Stage 0 folding — asked to skip the agreement, it skips it](codelab-img/st0-fold.png)
 
 No shame in any of this: it works-ish, and for a one-shot demo it would be
 fine. *This is fine until you need to see it, pause it, or trust it.* Keep
@@ -702,13 +718,8 @@ The FRONT of the real graph: two readers leave START together, a join
 holds for both, a composer folds them into one bundle. Nothing here is a
 copy — the nodes are imported from `agent/graph.py`, the exact functions
 the finished channel runs; this app just declares a SUBSET of the final
-edge list.
-
-👉💻 In **tab 1**, open it — it fits on one screen:
-
-```console
-cloudshell edit ~/vibe-studio-lab/stage1_fanout/agent.py
-```
+edge list (`stage1_fanout/agent.py` is twelve lines, if you ever want to
+look — nothing to open now).
 
 👉🔬 Switch the dropdown to **`stage1_fanout`** and send the SAME idea:
 
@@ -879,6 +890,7 @@ Duration: 0:11:00
 - **What** — grow the last piece (a deterministic router that can refuse), read the replacement table, read the real edge list in the real file, boot Vibe Studio and run the whole graph as a lap — three touches, everything else automatic. Nothing to type in code.
 - **Why** — this is where "the small workflows" and "the real workflow" turn out to be the same thing: stage 3 IS the lap graph, the real file's edge list is a recital of it, and the app is just the graph with buttons.
 - **How** — stage 3 (watch it refuse) → the replacement table → the real edge list → boot the app → drop the idea → pick a direction → watch the rest run itself.
+- **Surfaces** — 🔬 adk web · 💻 tab 3 (start Vibe Studio) · 🌐 the port-4600 Preview. Tab 1 is not touched.
 
 ### Stage 3 — the policy gate, and the graph is complete
 
@@ -892,14 +904,8 @@ upstream of it. (The scripter at the tail runs quietly — the lap needs a
 script for renders and titles, but you will not write or read one in this
 codelab.)
 
-👉💻 In **tab 1**, open the router — read only, and small:
-
-```console
-cloudshell edit ~/vibe-studio-lab/agent/graph.py
-```
-
-👉📖 Find `policy_check` — read only, nothing to change. The decision is
-four lines:
+👉📖 `policy_check` in `agent/graph.py` — read here, nothing to open.
+The decision is four lines:
 
 ```python
     text = f"{node_input.get('title', '')} {node_input.get('angle', '')}".lower()
@@ -943,7 +949,9 @@ When the form arrives, type `1` in the pick field and press **Submit**. *You sho
 `route: OK` on the policy node's event — and in adk web's graph panel,
 `policy_check` is drawn as a **diamond** with two labelled exits, the
 OK edge lit and `quarantine` greyed out. A router looks different from a
-step because it IS different: one node in, two ways out.
+step because it IS different: one node in, two ways out:
+
+![Stage 3 — route: OK on the diamond, scripter lit, quarantine grey](codelab-img/st3-ok.png)
 
 👀 The same shape shows up in Vibe Studio's live map later — the policy
 node wears an amber diamond and its edges carry **OK** and **BLOCK**
@@ -951,13 +959,8 @@ chips, so you can read the decision off the picture while a lap runs.
 
 **Now watch it refuse.**
 
-👉💻 In **tab 1**, open the policy file — read only, nothing to change:
-
-```console
-cloudshell edit ~/vibe-studio-lab/agent/policy_words.txt
-```
-
-Three words, one per line — `competitor` is one of them.
+👉📖 `agent/policy_words.txt` — read here, nothing to open — is three
+words, one per line, and `competitor` is one of them.
 
 👉🔬 Back in adk web, start a fresh run in `stage3_router`, and this time
 answer the form with `custom` — type a direction that contains that word:
@@ -991,11 +994,9 @@ chapter — read it slowly once:
 
 ### The real edge list — the graph you grew, in five lines
 
-👉💻 In **tab 1**, `agent/graph.py` is already open in the editor — read
-only, nothing to change.
-
-👉📖 Scroll to the bottom, to `wf = Workflow(...)`. Its edge list is the
-graph you just grew, stage by stage:
+👉📖 At the bottom of `agent/graph.py` sits `wf = Workflow(...)` — read
+here, nothing to open. Its edge list is the graph you just grew, stage by
+stage:
 
 <!-- code: EDGES -->
 ```python
@@ -1040,9 +1041,9 @@ The stages ran in the inspector: no product, no buttons. The lap runs in
 stopped:** adk web stays up on port 8000; Vibe Studio is a *different*
 server on 4600.
 
-👉💻 Open a **third terminal tab (tab 3)** — leave tabs 1 and 2 alone — and
-start the ONE app server. This is the boot command behind every 👉🌐 step
-from here on:
+👉💻 Open a **third terminal tab (tab 3)** — the last one, the one Setup's
+table promised; leave tabs 1 and 2 alone — and start the ONE app server.
+This is the boot command behind every 👉🌐 step from here on:
 
 ```console
 cd ~/vibe-studio-lab
@@ -1050,13 +1051,8 @@ source .venv/bin/activate
 uvicorn app.main:app --port 4600
 ```
 
-| tab | what runs there | what it is |
-|---|---|---|
-| **tab 1** | nothing, on purpose | your work terminal — every 👉💻 command and `cloudshell edit` |
-| **tab 2** | `adk web` :8000 | the inspector — raw events, the State tab, the stage apps |
-| **tab 3** | `uvicorn` :4600 | Vibe Studio — the product: buttons, the form, the live map |
-
-👉🌐 Click **Web Preview → Change port → 4600**:
+👉🌐 Click **Web Preview → Change port → 4600**, type your idea (or
+nothing) and you are one click from a lap:
 
 ![Vibe Studio asleep — drop an idea, or drop nothing](codelab-img/s2-idle.png)
 
@@ -1157,6 +1153,7 @@ Duration: 0:07:00
 - **What** — the third and last touch: judge the video's real thumbnail. Approve it (or regenerate it first), and the lap delivers every render, passes the publish backstop, and puts the video on your channel — and, if Setup joined a room, on the room's VibeTube, silently.
 - **Why** — this is where the lab's threads meet. ⏳ taught you that a wait is a *value*, delivered by id — and that the answer is usually a human judgment. 🔀 🗺️ taught you that a run is a *shape*. Neither of them knows when a lap is **finished** — that part is yours, and it is two lines.
 - **How** — read the join → judge the thumbnail (Regenerate if you like) → Approve → watch the worker finish everything → find the video in both places.
+- **Surfaces** — 🌐 Vibe Studio only.
 
 👀 Where you are: your direction cleared the policy gate, the script was
 written quietly, and the renders started themselves. The **desk** is
@@ -1166,15 +1163,8 @@ answers by id. It will never tell you they add up to "done".
 
 ### The join (read, don't write)
 
-👉💻 In **tab 1**, open `joinlogic.py` in the Cloud Shell Editor by
-running:
-
-```console
-cloudshell edit ~/vibe-studio-lab/agent/joinlogic.py
-```
-
-👉📖 In `joinlogic.py` — read only, nothing to change — find
-`try_finish()`. These two lines define "all done":
+👉📖 `try_finish()` in `agent/joinlogic.py` — read here, nothing to
+open. These two lines define "all done":
 
 <!-- code: JOIN_CONDITION -->
 ```python
@@ -1415,8 +1405,8 @@ notes. And during the wait itself? Nothing runs — and nothing is lost.
 the graph never changes again. What changes, one chapter at a time, is
 what the graph KNOWS when it wakes up — and the first improvement is the
 simplest: the second time you open the studio, it speaks first, with a
-suggestion shaped like your taste. This lap is your channel's
-**second video**.
+suggestion shaped like your taste. Your channel's **second video** starts
+from that screen — next chapter, once the channel has grown a new sense.
 
 This chapter's single lesson, up front: **ADK session state
 persists in the SessionService** — here that is `DatabaseSessionService`,
@@ -1431,6 +1421,7 @@ every layer:
 - **Why this layer** — the process is allowed to die; whatever must outlive it needs an address outside the process.
 - **How it connects** — nothing to connect: ADK's SessionService writes here automatically (you passed its sqlite URI to adk web in the first chapter ⏳).
 - **How the agent uses it** — every resume reads it; and the app reads `user:prefs` before any lap exists, which is how the idle card can greet you with a suggestion.
+- **Surfaces** — 🌐 Vibe Studio · 💻 tab 3 (one Ctrl+C + restart) · 🔬 adk web, just browsing.
 
 ### The ladder
 
@@ -1509,14 +1500,8 @@ code does not change.
 
 ### One prefix, already at work (read, don't write)
 
-👉💻 In **tab 1**, open `graph.py` in the Cloud Shell Editor by running:
-
-```console
-cloudshell edit ~/vibe-studio-lab/agent/graph.py
-```
-
-👉📖 In `graph.py` — read only, nothing to change — find
-`persist_direction` and the write it makes when you pick a direction:
+👉📖 `persist_direction` in `agent/graph.py` — read here, nothing to
+open — and the write it makes when you pick a direction:
 
 ```
     yield Event(state={"direction": chosen["title"], "angle": chosen.get("angle", ""),
@@ -1556,11 +1541,13 @@ them. That is the whole prefix, demonstrated: the studio greets you with
 your own taste before any run exists. (Kill the app, reopen it, and the
 box is still filled — try it.)
 
-👉🌐 Press **Start next lap ▸** (keep the suggestion or type over it) and
-run your channel's second video the way you now know: pick a direction,
-approve the thumbnail. Two clicks of judgment, everything else automatic:
+👀 Do NOT press it yet. That button is where your second video will start
+— in the next chapter, after the channel grows a new sense — and when you
+do press it, you will run the lap the way you now know: pick a direction,
+approve the thumbnail, two clicks of judgment. For now the point is only
+that the box is already full:
 
-![Start next lap — the button on the published card, idea box already filled](codelab-img/s3-nextlap-click.png)
+![Start next lap — the next chapter starts from this button, idea box already filled](codelab-img/s3-nextlap-click.png)
 
 👉🔬 See the same thing in the raw store — browse only, no commands, no
 typing, five clicks:
@@ -1662,6 +1649,7 @@ live map grows a node in front of you. From that lap on, candidates carry
 - **Why this layer** — the audience's watch data is bigger than any process and shared with every tool; it outlives even this VM.
 - **How it connects** — one button in the app's **World** tab (it runs `scripts/graph.sh`): create the dataset, load the vendor pack, declare the graph, push YOUR rows in. Then ONE edge (the GRAPH_EDGE hole) wires the `read_graph` node into your fan-out.
 - **How the agent uses it** — once wired, `read_graph` queries it every lap; at the end of this chapter you watch the app cite it.
+- **Surfaces** — 🌐 Vibe Studio · ✏️ the Editor, one line in `graph.py` · the Cloud console, just browsing.
 
 ### Why BigQuery, and do you even need a graph
 
@@ -1685,13 +1673,7 @@ that fine. Multi-hop questions over many-to-many edges do.
 
 ### The edge that carries the data (read, don't write)
 
-👉💻 In **tab 1**, open `load.py` in the Cloud Shell Editor by running:
-
-```console
-cloudshell edit ~/vibe-studio-lab/bqgraph/load.py
-```
-
-👉📖 In `load.py` — read only, nothing to change — find `GRAPH_DDL`. The
+👉📖 `GRAPH_DDL` in `bqgraph/load.py` — read here, nothing to open. The
 four tables are declared as nodes; then comes the edge that carries the
 watch data, and it is three clauses long:
 
@@ -1775,6 +1757,8 @@ it and **uncomment** the line below it:
         (START, read_graph, join_research),
 ```
 
+![Before and after, in the editor — the TODO line goes, the edge line loses its #](codelab-img/s4-edit-before-after.png)
+
 One edge. The join does not change (it waits for whoever is connected),
 the composer does not change (it renders whichever feeds arrive), no other
 line changes. That is what the growth costs.
@@ -1791,10 +1775,11 @@ you just did:
 👉🌐 Prove it in the app, click by click (the idea box may stay empty; you
 type nothing):
 
-1. Open Vibe Studio (Web Preview → 4600) → the **Now** tab.
-2. Press **Start a lap ▸** (take the suggestion chip or leave the box
-   empty) and wait ~20 s — watch THREE research nodes light up together
-   on the grown map.
+1. Open Vibe Studio (Web Preview → 4600) → the **Now** tab, still on the
+   published card from your first video.
+2. Press **Start next lap ▸** (keep the pre-filled idea, or type over it)
+   and wait ~20 s — watch THREE research nodes light up together on the
+   grown map. This is your channel's second video.
 3. The direction card appears. Its candidates now carry evidence chips —
    `trends` and, once your own watch rows are in the graph, `graph#N`:
 
@@ -1900,17 +1885,12 @@ typed into a prompt.
 - **Why this layer** — lessons must outlive runs, sessions, and this machine — and consolidation (merging new lessons into old ones) is a service, not a file.
 - **How it connects** — one command creates the resource; `runs/memorybank.json` caches its address.
 - **How the agent uses it** — you write notes with one call, then wire ONE line — and watch the next pitch change because of it.
+- **Surfaces** — 🌐 Vibe Studio · ✏️ the Editor, one line in the same file · 🔬 adk web and the Cloud console, just browsing.
 
 ### Connect: create the bank
 
-👉💻 In **tab 1**, open `memory.py` in the Cloud Shell Editor by running:
-
-```console
-cloudshell edit ~/vibe-studio-lab/agent/memory.py
-```
-
-👉📖 In `memory.py` — read only, nothing to change — two spots, one idea
-each:
+👉📖 `agent/memory.py` — read here, nothing to open — two spots, one
+idea each:
 
 - `_bank_config()` — the bank's configuration. The nesting is the concept:
   `AgentEngineConfig → context_spec → memory_bank_config → memory_topics`.
@@ -1932,24 +1912,26 @@ ships <b>managed topics</b>: <code>USER_PREFERENCES</code>,
 <code>EXPLICIT_INSTRUCTIONS</code>.
 </aside>
 
-👉💻 Create it (tab 1 · ~30 s · one-time):
+👉🌐 Create it — one button, one-time, ~30 s. In Vibe Studio open the
+**State** tab: the bottom row, **Memory**, carries a button no other row
+has, and its grey caption names what it runs (`python -m agent.bank`):
 
-```console
-cd ~/vibe-studio-lab
-source .venv/bin/activate
-python -m agent.bank
+![The State tab — the Memory row's one-time Connect button](codelab-img/s5-connect-button.png)
+
+👉🌐 Press **Connect the bank ▸**. *You should see* the row go busy for
+~30 s, then show the resource name it created, with the command's own
+output under it — and the button is gone, because the file it wrote
+(`runs/memorybank.json`) IS the connection:
+
 ```
-
-*You should see:*
-
-```
-no Memory Bank yet - creating an Agent Engine to host it (~30s, one-time)…
 ── created ──
-  projects/680476413759/locations/us-central1/reasoningEngines/3403957707466604544
+  projects/…/locations/us-central1/reasoningEngines/3403957707466604544
 scope for every note: app_name=vibestudio · user_id=creator
 memory topics (custom): CHANNEL_LESSONS · CHANNEL_CONSTRAINTS · AUDIENCE
 the bank holds 0 note(s)
 ```
+
+![Connected — the resource name under the Memory row](codelab-img/s5-connected.png)
 
 👉🌐 See it in the Cloud console (just browse):
 [console.cloud.google.com/vertex-ai/agents/agent-engines](https://console.cloud.google.com/vertex-ai/agents/agent-engines)
@@ -1969,13 +1951,7 @@ memory count:
 | you get it by | asking a question you know | similarity — the question finds the note |
 | lands in | a report you read | the agent's context, mid-decision |
 
-👉💻 In **tab 1**, open `learn.py` in the Cloud Shell Editor by running:
-
-```console
-cloudshell edit ~/vibe-studio-lab/agent/learn.py
-```
-
-👉📖 In `learn.py` — read only, nothing to change — find `distill()`. The
+👉📖 `distill()` in `agent/learn.py` — read here, nothing to open. The
 code is deliberately plain: the drop-at-5s *reading* becomes a
 conclusion-first *rule*; the neighbor overlap becomes one audience sentence.
 Notice what never enters a note: no video ids, no row counts, no job ids.
@@ -2002,9 +1978,9 @@ action flags). `name` is the resource you just created.
 1. Open the **Now** tab. The lap you finished in the graph chapter 🌍 is
    still on screen — and the card has grown a button it did not have
    before. The app shows **Learn from the audience ▸** only once a bank
-   exists to write into (`runs/memorybank.json`, the file `agent.bank`
-   just wrote) — the same rule as the map: nothing is drawn until it is
-   real.
+   exists to write into (`runs/memorybank.json`, the file the Connect
+   button just wrote) — the same rule as the map: nothing is drawn until
+   it is real.
 
 ![Step 1 — the published card, now with the Learn button the bank unlocked](codelab-img/s2c-published.png)
 
@@ -2025,7 +2001,7 @@ action flags). `name` is the resource you just created.
 3. Wait ~30 seconds, then open the **State** tab: the Memory Bank row —
    the bottom rung of the ladder — now holds the distilled notes:
 
-![Step 3 — the bottom rung is no longer empty](codelab-img/s3-state.png)
+![Step 3 — the bottom rung is no longer empty](codelab-img/s5-state-notes.png)
 
 ### Read: one edge, and the agent uses it
 
@@ -2034,14 +2010,9 @@ candidates would show `graph#N` chips and **no `memory#`**: notes are
 being written and never read, because no edge reaches `read_memory`. Wire
 in the channel's last sense — this edge is the whole point of Act III:
 
-👉💻 In **tab 1**, open `graph.py` in the Cloud Shell Editor one last
-time by running:
-
-```console
-cloudshell edit ~/vibe-studio-lab/agent/graph.py
-```
-
-👉✏️ In the edge list, find the line marked `TODO: MEMORY_EDGE`,
+👉✏️ `agent/graph.py` is still open in the Cloud Shell Editor from 🌍
+(if you closed it: `cloudshell edit ~/vibe-studio-lab/agent/graph.py` in
+**tab 1**). In the edge list, find the line marked `TODO: MEMORY_EDGE`,
 **delete** it and **uncomment** the line below it:
 
 <!-- code: MEMORY_EDGE -->
@@ -2057,8 +2028,9 @@ every lap.)
 
 👉🌐 Watch the agent use the bank, click by click (you type nothing):
 
-1. **Now** tab → press **Start a lap ▸** (chip or empty) and wait ~20 s —
-   FOUR research nodes now light together on the map.
+1. **Now** tab → press **Start next lap ▸** (keep the pre-filled idea or
+   type over it) and wait ~20 s — FOUR research nodes now light together
+   on the map. This is your channel's third video.
 2. Read the direction card: *our real run's* candidates all promise the
    outcome up front — because the recalled `CHANNEL_CONSTRAINTS` note
    says conclusion-first. Nothing asked you for that; the graph read it.
@@ -2112,6 +2084,13 @@ any decision, cited as <code>memory#</code>.
 </aside>
 
 ### Read more (optional)
+
+<aside class="positive">
+<b>The connect step, by hand.</b> The button runs <code>python -m
+agent.bank</code>; type it yourself in tab 1 and it prints the same lines —
+run it twice and the second time it says <i>already connected</i>, because
+the cached name in <code>runs/memorybank.json</code> is the connection.
+</aside>
 
 <aside class="positive">
 <b>The write path, by hand — and the flags the button hides.</b> The button

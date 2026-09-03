@@ -14,6 +14,7 @@ Two rules, borrowed from the same grammar the rest of Annie's stages use:
 And one flourish: the marker that walks the graph is the avatar the student
 generated in chapter 2, so the face on the map is theirs.
 """
+from agent import config as _config
 from agent import state as _state
 
 # where each node sits (grid units) - layout only, never structure
@@ -58,11 +59,30 @@ INK, SUBC, LINE = "#2B2320", "#8B7E70", "#D9CFC0"
 DONE, NOW, HUMANC = "#C96442", "#E9B44C", "#E9B44C"
 
 
+_GRAPH_MTIME = 0.0
+
+
+def _live_graph():
+    """The map must show the graph as it is ON DISK right now: when the
+    student uncomments an edge in agent/graph.py, the next render re-imports
+    the module (the lap itself always runs in a fresh process, so it saw the
+    edit anyway - this keeps the picture honest without a restart)."""
+    import importlib
+    import agent.graph as g
+    global _GRAPH_MTIME
+    mtime = (_config.ROOT / "agent" / "graph.py").stat().st_mtime
+    if mtime != _GRAPH_MTIME:
+        if _GRAPH_MTIME:
+            g = importlib.reload(g)
+        _GRAPH_MTIME = mtime
+    return g.wf
+
+
 def graph_edges() -> list[tuple[str, str, str | None]]:
     """The real thing (with each edge's ROUTE label), or a readable fallback
     if a hole is still open. The route is what makes a router a router."""
     try:
-        from agent.graph import wf
+        wf = _live_graph()
         return [(e.from_node.name, e.to_node.name, getattr(e, "route", None))
                 for e in wf.graph.edges]
     except Exception:
