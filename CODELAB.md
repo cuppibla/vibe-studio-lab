@@ -43,8 +43,8 @@ the same call id — and its content is usually a human judgment), one set
 of **nodes** (the small apps and the final lap run the same imported
 functions), one **idea** (you type it once, it becomes your published
 video), one **state key at a time** (watch `candidates` → `direction` →
-`user:prefs` travel the graph), and one **policy word** (you add it early;
-it guards every real publish).
+`user:prefs` travel the graph), and one **policy file** (three words in a
+text file; it guards every real publish).
 
 One law carries the whole lab: **a long-running agent is defined by where its
 state lives, because its process is allowed to die.**
@@ -270,12 +270,12 @@ words:
 | **ANCHOR** | you | *"The scene is: a tiny robot doing laundry at midnight"* |
 | **STYLE-LOCK** | the studio | low-poly facets · the cream/terracotta/sage palette · soft daylight |
 | **CONSTRAINTS** | the studio | 16:9, one comic decisive moment, **no text** |
-| **THE TITLE BAND** | the studio, afterwards | your words, laid on the art in the house font |
+| **THE CAPTION STICKER** | the agent writes 2-4 words; code prints them | *"Midnight Laundry Chaos"*, stuck on the finished art in the house font |
 
 Everyone in the room types something different and everyone gets the same
 house style — that is what a style-lock is for. And notice the last row:
-the studio asks the model for art with **no text**, then draws the title
-on top itself. Image models garble long words; a thumbnail needs them
+the studio asks the model for art with **no text**, then prints the
+caption on top itself. Image models garble words; a thumbnail needs them
 crisp. Art from the model, words from code.
 
 *You should see* one tool call, the word **WAITING** — and then nothing. No
@@ -1131,8 +1131,9 @@ One more dict entry fixes it —
 </aside>
 
 <aside class="positive">
-<b>What BLOCK looks like in the product.</b> Add your word to a direction
-in a REAL lap and the app shows the polite stop: <i>"Blocked — by your own
+<b>What BLOCK looks like in the product.</b> Put a policy word (say,
+<code>competitor</code>) in a "write my own" direction in a REAL lap and
+the app shows the polite stop: <i>"Blocked — by your own
 policy. Nothing was scripted, rendered or paid."</i> plus a fresh idea box.
 The graph ended at <code>quarantine</code>; the app just reads
 <code>lineage.gates.policy</code> and says so.
@@ -1276,8 +1277,8 @@ workflow in `agent/post.py`:
 ![The publish backstop — editor, one eval, the side effect](codelab-img/shape-4-post.png)
 
 Your POLICY gate already ran inside the lap graph, before any money was
-spent — read `runs/state.json` → `lineage.gates.policy` and the list that
-judged your direction includes **your word**. But the quiet script stage
+spent — read `runs/state.json` → `lineage.gates.policy` and you will find
+the route it recorded for your direction. But the quiet script stage
 came AFTER that gate, so one deterministic backstop checks what it
 introduced, right before the side effect: `eval_gate` verifies the title
 length, the tags, and — the important one — that every evidence citation
@@ -2169,7 +2170,7 @@ from user:prefs. Nothing later depends on running this.
 Duration: 0:02:00
 
 You ran a channel: one idea, three videos, three clicks of judgment each —
-with three one-line edits, every one of them an EDGE. The point was never
+with two one-line edits, both of them an EDGE. The point was never
 typing: it was seeing exactly where every pause and every byte lives. The
 whole story in one table:
 
