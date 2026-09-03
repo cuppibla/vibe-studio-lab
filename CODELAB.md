@@ -1337,7 +1337,10 @@ thumbnail into a real 6-second H.264 poster video (~5s), then ONE multipart
 POST — title, description, your display name, the video, the thumbnail —
 to <code>POST /api/events/&lt;room&gt;/videos</code>. No SDK, no session: a
 platform is a contract. Re-running the same lap REPLACES your entry (same
-<code>projectId</code>), so retries are safe. Read it with
+<code>projectId</code>), so retries are safe. One more long-running fact
+hides in the response: <code>200</code> means <i>accepted</i>, not
+playable — the platform transcodes in the background, so your card may say
+"processing" for a minute or two before the play button works. Read it with
 <code>cloudshell edit ~/vibe-studio-lab/agent/premiere.py</code>.
 </aside>
 
