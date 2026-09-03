@@ -13,6 +13,13 @@ the lab still runs with no video model and no cost -
   job 0 -> done after 2s · job 1 -> FAILS once (the medic's cue) ·
   job 2 -> never completes (the deadline's cue) · job 3+ -> done after 2s
 
+FAILOVER: a Veo call gets exactly ONE retry. If the retry fails too, the whole
+RUN degrades to that prebaked clock (see _degrade) and says so loudly - in the
+worker log and on the page - because a learner must never mistake a stand-in
+for Veo output. The degraded flag lives in broker.json, so it survives the
+process boundary and a resumed run picks it back up instead of re-dialling a
+model that is not answering.
+
 Pull-through advancement: state only moves when poll() is called - no daemon.
 """
 import json
@@ -53,6 +60,28 @@ def _client():
     return _client_ref
 
 
+def _reset_client() -> None:
+    """Drop the cached client so the one retry gets a fresh one - a client built
+    against a half-configured environment stays broken otherwise."""
+    global _client_ref
+    _client_ref = None
+
+
+# The API saying no: it will say no again in three minutes, so there is nothing
+# to wait for. Anything else (a socket hiccup, a 503) still gets its one retry.
+_FATAL = ("permission", "denied", "quota", "exceeded", "not found", "unauthorized",
+          "unauthenticated", "invalid argument", "invalid_argument", "billing",
+          "api key", "api_key", "403", "404", "429")
+
+
+def _fatal_api_error(e: BaseException) -> bool:
+    code = getattr(e, "code", None) or getattr(e, "status_code", None)
+    if code in (400, 401, 403, 404, 429):
+        return True
+    blob = f"{type(e).__name__} {e}".lower()
+    return any(k in blob for k in _FATAL)
+
+
 def _load() -> dict:
     if config.BROKER.exists():
         return json.loads(config.BROKER.read_text())
@@ -63,6 +92,64 @@ def _save(d) -> None:
     config.BROKER.write_text(json.dumps(d, indent=2))
 
 
+def degraded() -> dict | None:
+    """Has this run failed over to the prebaked clock? Read by the deadline and
+    by Studio's page - the one source of truth, on disk, shared by every worker."""
+    return _load().get("degraded")
+
+
+def deadline_s() -> float:
+    """How long to wait on the farm. A degraded run is on the 2-second clock,
+    so holding it to Veo's 420s window would spend the outage twice."""
+    return config.PREBAKED_DEADLINE_S if degraded() else config.DEADLINE_S
+
+
+def _degrade(d: dict, reason: str) -> None:
+    """Fail this RUN over to the prebaked clock - once, loudly, and for good.
+
+    Every real job still queued becomes a prebaked one on the spot: leaving them
+    to poll an operation that will never answer is exactly the hang we are here
+    to remove. Idempotent, so a resumed run re-reads the flag and moves on."""
+    if d.get("degraded"):
+        return
+    d["degraded"] = {"reason": reason, "at": time.time()}
+    print(f"  [farm] !! VEO UNAVAILABLE - {reason}")
+    print("  [farm] !! this run is DEGRADED to the prebaked clock: the clips below "
+          "are STAND-INS, not Veo output")
+    for j in d["jobs"]:
+        if j.get("real") and j["status"] == "queued":
+            j["real"] = False
+            j["submitted_at"] = time.time()          # the prebaked clock starts now
+            j["note"] = f"degraded to prebaked - {reason}"
+
+
+def _submit_real(job: dict, prompt: str) -> str | None:
+    """Start ONE Veo operation. Real, then exactly one retry, then say why.
+
+    Returns None on success, or the reason the run should degrade. This is the
+    submission, not the render: two attempts cost seconds, so a 403 surfaces as
+    a 403 in seconds instead of anywhere near the render deadline."""
+    from google.genai import types as gt
+    last, fatal = "", False
+    for attempt in (1, 2):
+        try:
+            op = _client().models.generate_videos(
+                model=VEO_MODEL, prompt=f"{prompt} {STYLE}",
+                config=gt.GenerateVideosConfig(
+                    aspect_ratio="16:9", resolution="720p", number_of_videos=1,
+                    negative_prompt="text, subtitles, captions, watermark, logo"))
+            job.update(real=True, op=op.name, model=VEO_MODEL)
+            if attempt == 2:
+                print(f"  [farm] veo submit recovered on the retry ({job['id']})")
+            return None
+        except Exception as e:
+            last, fatal = f"{type(e).__name__}: {str(e)[:110]}", _fatal_api_error(e)
+            print(f"  [farm] veo submit attempt {attempt}/2 failed: {last}")
+            _reset_client()      # a client built against a bad env stays bad
+    return (f"veo refused the submission ({last})" if fatal
+            else f"veo submit failed twice ({last})")
+
+
 def submit(prompt: str) -> str:
     """One shot -> one receipt. Real mode starts the Veo operation right here
     (a two-second call) and stores its NAME - that string is all a later
@@ -71,18 +158,13 @@ def submit(prompt: str) -> str:
     idx = len(d["jobs"])
     job = {"id": f"job_{idx}", "idx": idx, "prompt": prompt, "status": "queued",
            "submitted_at": time.time(), "failed_before": False, "real": False}
-    if config.REAL_VIDEO:
-        try:
-            from google.genai import types as gt
-            op = _client().models.generate_videos(
-                model=VEO_MODEL, prompt=f"{prompt} {STYLE}",
-                config=gt.GenerateVideosConfig(
-                    aspect_ratio="16:9", resolution="720p", number_of_videos=1,
-                    negative_prompt="text, subtitles, captions, watermark, logo"))
-            job.update(real=True, op=op.name, model=VEO_MODEL)
-        except Exception as e:                 # no Veo here: the clock keeps the lab alive
-            job["note"] = f"veo unavailable ({str(e)[:90]}) - prebaked clock"
-            print(f"  [farm] {job['note']}")
+    if d.get("degraded"):                      # already failed over: don't re-dial
+        job["note"] = f"prebaked stand-in - {d['degraded']['reason']}"
+    elif config.REAL_VIDEO:
+        why = _submit_real(job, prompt)
+        if why:
+            _degrade(d, why)
+            job["note"] = f"prebaked stand-in - {why}"
     d["jobs"].append(job)
     _save(d)
     return job["id"]
@@ -134,9 +216,17 @@ def poll() -> list[dict]:
         if j.get("real"):
             try:
                 _advance_real(j)
-            except Exception as e:             # a transient poll error is not a failed render
-                print(f"  [farm] poll hiccup on {j['id']}: {str(e)[:80]}")
-            continue
+            except Exception as e:
+                # A slow operation answers `done: false` - it does NOT raise. So
+                # this is an error, not patience: tolerate one, then fail over
+                # rather than re-asking a dead endpoint until the deadline.
+                j["op_errors"] = j.get("op_errors", 0) + 1
+                why = f"{type(e).__name__}: {str(e)[:110]}"
+                print(f"  [farm] veo poll attempt {j['op_errors']}/2 on {j['id']} failed: {why}")
+                if _fatal_api_error(e) or j["op_errors"] >= 2:
+                    _degrade(d, f"veo polling failed ({why})")
+            if j.get("real"):
+                continue                       # still Veo's; the clock below is not ours
         age = now - j["submitted_at"]
         if j["idx"] == 2:
             continue                      # the straggler: deadline's job
