@@ -894,6 +894,19 @@ And `policy_words()` reads **`agent/policy_words.txt` at decision time** —
 policy is DATA, not code. Edit the file, and the very next run enforces
 it. No restart, no redeploy.
 
+👀 Now read what is NOT in those four lines: **a model.** A list of
+words, an `in` test, a word back. The same direction gets the same route
+every time, it costs nothing, it needs no network, and you could unit-test
+it in a `for` loop. That is a **deterministic router** — the decision is
+code you can read, not a sentence in a prompt asking a model to be
+careful. ADK lets a router be an `Agent` too (a node whose model returns
+the route word), and that is the right tool when the decision needs
+judgment — *"is this pitch on-brand?"*. A policy gate wants no judgment
+at all: the rule is the rule, it must be instant, and it must be
+explainable in lineage afterwards. So this one is plain Python — and the
+graph does not care which kind it is: a node returned a word, an edge
+matched it.
+
 👉🔬 Switch the dropdown to **`stage3_router`**, send the same idea, and
 when the form arrives pick `1` and **Submit**. *You should see*
 `route: OK` on the policy node's event — and in adk web's graph panel,
@@ -1186,13 +1199,22 @@ needs a person.
 
 ![Published — the panel is watching, and the room can see you](codelab-img/s2c-published-v2.png)
 
-👀 If Setup joined a room, the card carries one extra line: **"and the
+👀 The card is deliberately small: a link to your channel, and an idea box
+for the next lap that is **already filled in** — ignore that box for now,
+the 💾 chapter is about why it is not empty.
+
+If Setup joined a room, the card carries one extra line: **"and the
 room can see you"** with a watch link. Nothing asked you, and no step was
 skipped — the same approval that finished your lap also premiered the
 video to the room's VibeTube, with your thumbnail on the card, because
 publishing to the room is part of what finishing means once `.env` points
 at one. Click the link (just browse) and your card sits in the grid next
-to everyone else's. (Self-paced, no room: the line simply is not there.)
+to everyone else's:
+
+![Your card in the room's VibeTube — same thumbnail, same title, next to everyone else's](codelab-img/s2d-vibetube-room.png)
+
+(Self-paced, no room: the line simply is not there, and nothing later
+depends on it.)
 
 👉🌐 Open the **Channel** tab and press **play** on your newest card:
 
@@ -1470,9 +1492,10 @@ word, one lifetime longer. (`temp:` goes the other way: never persisted.)
 👉🌐 Go back to the app's **Now** tab, on the published card from your
 first video. Look at what sits next to **Start next lap ▸**: an idea box
 that is **already filled in** — with a topic shaped like the direction you
-picked last time:
+picked last time. It is the same box you typed your first idea into; this
+time the studio wrote in it first:
 
-![The next lap, pre-filled from user:prefs — the studio remembers your taste](codelab-img/s3-suggest-chip.png)
+![The published card, up close — the idea box arrives pre-filled from user:prefs with your last direction](codelab-img/s3-suggest-chip.png)
 
 👀 Nothing suggested that during the lap. The app called one helper —
 `suggest_topic()` in `app/main.py` — which reads `user:prefs` from the
@@ -1924,9 +1947,13 @@ action flags). `name` is the resource you just created.
 👉🌐 Now write the notes — one button, click by click (you type nothing):
 
 1. Open the **Now** tab. The lap you finished in the graph chapter 🌍 is
-   still on screen — and the left button is the one you want:
+   still on screen — and the card has grown a button it did not have
+   before. The app shows **Learn from the audience ▸** only once a bank
+   exists to write into (`runs/memorybank.json`, the file `agent.bank`
+   just wrote) — the same rule as the map: nothing is drawn until it is
+   real.
 
-![Step 1 — the published card carries the Learn button](codelab-img/s2c-published.png)
+![Step 1 — the published card, now with the Learn button the bank unlocked](codelab-img/s2c-published.png)
 
 2. Press **Learn from the audience ▸** (the grey caption under it says
    exactly what it runs: `python -m agent.learn, as a button`). It is NOT a

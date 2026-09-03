@@ -355,19 +355,26 @@ def now_body() -> str:
                         f'({room["skipped"]})</div>')
         else:
             room_row = ""
+        # the Learn button exists only once there is a bank to write into -
+        # same rule as the map: nothing is drawn until it is real
+        from agent import memory as _memory
+        learn = ""
+        if _memory.engine_name():
+            learn = """
+<form method="post" action="/ui/learn"><div style="text-align:right">
+<button class="go">Learn from the audience ▸</button><br>
+<span style="font-size:12.5px;color:var(--sub)">python -m agent.learn, as a button</span></div></form>"""
         return busy_html + f"""
 <div class="card"><div class="h0">On the wall.</div>
 <div class="h0s mono">{v.get("video_id")} · the panel is watching</div>
 {room_row}
 <div class="foot"><a class="ghost" href="/channel">See it on Channel</a>
-<form method="post" action="/ui/learn" style="margin-left:auto"><div style="text-align:right">
-<button class="go">Learn from the audience ▸</button><br>
-<span style="font-size:12.5px;color:var(--sub)">python -m agent.learn, as a button</span></div></form>
+<div style="margin-left:auto;display:flex;gap:18px;align-items:flex-start">{learn}
 <form method="post" action="/ui/run"><div style="text-align:right">
 <input type="text" name="hint" value="{suggest_topic()}" style="min-width:280px">
 <button class="go">Start next lap ▸</button><br>
 <span style="font-size:12.5px;color:var(--sub)">pre-filled from <b>user:prefs</b> — the studio opens with your taste</span>
-</div></form></div></div>"""
+</div></form></div></div></div>"""
 
     # thumb approval?
     pend_thumb = drive.run(drive.pending(f"{st['run_id']}_thumb"))
