@@ -303,6 +303,14 @@ def stage_states(st: dict, phase: str, busy_verb: str | None,
         if blame and blame[0] == key and status in (NOW, IDLE, STALL):
             status, note = FAIL, blame[1]
 
+        # One row says one thing once. Several rows can derive a note that is
+        # word-for-word their own static subtitle - the script row always does
+        # while it is running, and any row whose note comes from the model or
+        # the user (direction, script title) can land on it too. Printed twice,
+        # it reads like the stage happened twice.
+        if note.strip().casefold() == sub.strip().casefold():
+            note = ""
+
         rows.append({"key": key, "label": label, "sub": sub,
                      "status": status, "note": note})
     return rows
