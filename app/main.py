@@ -9,6 +9,7 @@ from __future__ import annotations
 import html
 import json
 import os
+import signal
 import sqlite3
 import subprocess
 import sys
@@ -24,6 +25,7 @@ from pydantic import BaseModel
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from agent import config, drive, state  # noqa: E402
 from app import stages  # noqa: E402  (pure reader over runs/*.json - no graph import)
+from scripts import reset  # noqa: E402  (ONE list of what a lap owns on disk)
 from world import broker, simulator  # noqa: E402
 # NOTE: `agent.lap` (→ agent.graph) is imported lazily inside now_body — in the
 # carved starter the EDGES hole raises on import, and Studio must stay up to
@@ -152,6 +154,7 @@ def outcomes(creator_id: str):
 
 BUSY = config.RUNS / "ui_busy.json"
 LAST = config.RUNS / "ui_last.json"   # how the last button ended, for the page
+CONTROL = config.RUNS / "ui_control.json"  # what End / Restart just did, for the page
 PY = str(config.ROOT / ".venv" / "bin" / "python")
 
 
@@ -165,6 +168,7 @@ def _started(verb: str, pid: int) -> None:
     """One record per press: what is running, and no stale outcome from before."""
     BUSY.write_text(json.dumps({"verb": verb, "pid": pid, "at": time.time()}))
     LAST.unlink(missing_ok=True)
+    CONTROL.unlink(missing_ok=True)       # ...including the last End / Restart
 
 
 def _finished(verb: str, code: int) -> None:
@@ -243,6 +247,151 @@ def busy() -> str | None:
         return None
 
 
+# ── stopping what busy() is watching ──────────────────────────────────────
+# busy() reaps and reports; these three stop. Same rules apply: only the pid
+# on record is ever signalled, and a finished child is waited on so it cannot
+# sit in the process table as a zombie answering signal 0 forever.
+
+GRACE_S = 2.0        # SIGTERM, this long to die quietly, then SIGKILL
+
+
+def _reap(pid: int) -> int | None:
+    """Wait on our own child without blocking: its exit code once it is really
+    gone, or None if it is still running / was never ours to reap."""
+    try:
+        got, status = os.waitpid(pid, os.WNOHANG)
+    except (ChildProcessError, OSError):
+        return None                       # not our child - its parent reaps it
+    return os.waitstatus_to_exitcode(status) if got == pid else None
+
+
+def _alive(pid: int) -> bool:
+    """signal 0. A zombie answers it, so _reap() always runs first."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True                       # someone else's process: alive, not ours
+    except OSError:
+        return False
+    return True
+
+
+def _gone(pid: int, secs: float) -> tuple[bool, int | None]:
+    """Poll until the pid is gone or the grace runs out, reaping as we go."""
+    end = time.monotonic() + secs
+    while True:
+        code = _reap(pid)
+        if code is not None:
+            return True, code
+        if not _alive(pid):
+            return True, None
+        if time.monotonic() >= end:
+            return False, None
+        time.sleep(0.05)
+
+
+def stop_worker() -> dict:
+    """Stop whatever runs/ui_busy.json says is running and clear the slot.
+
+    Returns {verb, pid, how, code} for the page. It never raises: a control
+    whose whole job is getting a stuck learner unstuck must not 500 on a
+    missing file, a truncated one, a pid that died a second ago, a pid that
+    was recycled into someone else's process, or a worker started by a server
+    that has since been restarted (an orphan we can signal but never reap).
+    """
+    if not BUSY.exists():
+        return {"how": "nothing was running"}
+    try:
+        b = json.loads(BUSY.read_text())
+        verb, pid = str(b.get("verb") or "?"), int(b.get("pid") or 0)
+    except (OSError, ValueError, TypeError):
+        BUSY.unlink(missing_ok=True)
+        return {"how": "cleared a busy file that no longer parsed"}
+    if pid <= 0:
+        BUSY.unlink(missing_ok=True)
+        return {"verb": verb, "how": "had no pid on record - cleared the slot"}
+
+    code = _reap(pid)                     # finished on its own between clicks?
+    if code is not None:
+        _finished(verb, code)             # the same record busy() would write
+        return {"verb": verb, "pid": pid, "code": code,
+                "how": f"had already finished on its own (exit {code})"}
+    if not _alive(pid):
+        BUSY.unlink(missing_ok=True)
+        return {"verb": verb, "pid": pid, "how": "was already gone"}
+
+    how, done, code = "was already gone", False, None
+    for sig, name in ((signal.SIGTERM, "SIGTERM"), (signal.SIGKILL, "SIGKILL")):
+        try:
+            os.kill(pid, sig)             # the recorded pid, and nothing else
+        except ProcessLookupError:
+            done, code = _gone(pid, 0.5)  # it beat us to it - still reap it
+            done = True
+            break
+        except (PermissionError, OSError):
+            BUSY.unlink(missing_ok=True)
+            return {"verb": verb, "pid": pid,
+                    "how": "is not ours to signal - the pid belongs to another "
+                           "process now, so the stale slot was cleared instead"}
+        how = f"stopped with {name}"
+        done, code = _gone(pid, GRACE_S if sig == signal.SIGTERM else GRACE_S)
+        if done:
+            break
+    if not done:
+        how += " - it has not exited yet"
+    BUSY.unlink(missing_ok=True)
+    out = {"verb": verb, "pid": pid, "how": how}
+    if code is not None:
+        out["code"] = code
+    return out
+
+
+def _receipt(action: str, stopped: dict, cleared: list[str], kept: list[str],
+             archive: str = "", moved: list[str] | None = None) -> None:
+    """One record per control press, read back by control_card(). Cleared by
+    _started(), so the page can never show a receipt from two laps ago."""
+    CONTROL.write_text(json.dumps({
+        "action": action, "at": time.time(), "stopped": stopped,
+        "cleared": cleared, "kept": kept, "archive": archive,
+        "moved": moved or [],
+    }))
+
+
+def control_card() -> str:
+    """What End / Restart just did, in the same grammar as failed_card(): what
+    was stopped, what was cleared, and what deliberately survived."""
+    if not CONTROL.exists():
+        return ""
+    try:
+        r = json.loads(CONTROL.read_text())
+    except (OSError, ValueError):
+        return ""
+    s = r.get("stopped") or {}
+    verb, pid = s.get("verb"), s.get("pid")
+    who = f"python -m agent.{verb}" + (f" (pid {pid})" if pid else "") if verb else ""
+    stopped = f"{who} {s.get('how', '')}".strip() if who else str(s.get("how", ""))
+    head = ("You ended the lap. Nothing is running."
+            if r.get("action") == "end" else
+            "You restarted. This is a fresh lap.")
+    rows = [f'<div class="h0s">{html.escape(stopped)}</div>']
+    for label, items in (("cleared", r.get("cleared") or []),
+                         ("kept", r.get("kept") or []),
+                         ("moved aside, it no longer parsed", r.get("moved") or [])):
+        if items:
+            rows.append(f'<div class="h0s" style="margin-top:7px">{html.escape(label)}: '
+                        f'<span class="mono">{html.escape(", ".join(str(i) for i in items))}'
+                        f'</span></div>')
+    if r.get("archive"):
+        rows.append('<div class="h0s" style="margin-top:7px">a copy of everything cleared '
+                    f'is in <span class="mono">{html.escape(str(r["archive"]))}</span></div>')
+    return f"""
+<div class="card" style="border-left:4px solid #8A8072;margin-bottom:18px">
+<div class="h0" style="font-size:19px">{head}</div>
+{"".join(rows)}</div>"""
+
+
 def farm_note() -> str:
     """Veo failed over? Say so on every card of the lap. A learner must never
     finish this chapter believing a prebaked stand-in came out of Veo."""
@@ -311,6 +460,7 @@ select{border:1.5px solid var(--line);border-radius:13px;padding:10px 13px;font-
 .foot{display:flex;align-items:center;margin-top:26px;gap:14px}
 .go{margin-left:auto;background:var(--ink);color:#fff;font-size:14.5px;font-weight:600;padding:12px 28px;border-radius:13px;border:none;cursor:pointer}
 .ghost{border:1.5px solid var(--line);background:#fff;color:var(--sub);font-size:13px;padding:11px 16px;border-radius:12px;cursor:pointer}
+.danger{border:1.5px solid #C97B6B;background:#fff;color:#A65B4B;font-size:14.5px;font-weight:600;padding:12px 24px;border-radius:13px;cursor:pointer}
 .hero{border-radius:24px;overflow:hidden;box-shadow:var(--sh)}.hero img{width:100%;display:block}
 .busy{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--sub);margin-bottom:14px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);animation:p 1.2s infinite}
@@ -418,6 +568,7 @@ def now_body() -> str:
     busy_html = (f'<div class="busy"><span class="dot"></span>{b} is running — this page refreshes itself</div>'
                  if b else failed_card())
     busy_html += farm_note()
+    busy_html += control_card()          # what End / Restart just did, if anything
     if st.get("run_id"):
         # WHERE the lap is, stage by stage - derived from runs/state.json,
         # runs/broker.json and the worker logs, so it survives a restart. The
@@ -556,9 +707,68 @@ Nothing was scripted, rendered or paid.</div>
     return busy_html + '<div class="card"><div class="h0">Working…</div><div class="h0s">research is fanning out</div></div>'
 
 
+# ── the way out ───────────────────────────────────────────────────────────
+# Two controls, both destructive, so neither acts on the click that names it:
+# the first POST only renders confirm_body() (with the meta refresh OFF, so it
+# cannot bounce out from under the cursor), and only a second POST carrying
+# confirm=yes actually stops or clears anything.
+
+def escape_hatch() -> str:
+    """End / Restart, under every Now page that has something to act on."""
+    b, st = busy(), state.load()
+    if not b and not st.get("run_id"):
+        return ""                         # nothing running, no lap: no way out needed
+    running = (f"{html.escape(b)} is running" if b else "nothing is running")
+    return f"""
+<div class="card" style="margin-top:18px">
+<div class="h0" style="font-size:19px">A way out.</div>
+<div class="h0s">{running} · both controls ask you to confirm on the next page —
+this click stops nothing and clears nothing</div>
+<div class="foot">
+<form method="post" action="/ui/end"><button class="ghost">End the lap</button></form>
+<form method="post" action="/ui/restart" style="margin-left:auto"><div style="text-align:right">
+<button class="ghost">Restart — clear this lap</button><br>
+<span style="font-size:12.5px;color:var(--sub)">python scripts/reset.py, as a button</span>
+</div></form></div></div>"""
+
+
+def confirm_body(action: str) -> str:
+    """Step one of two. Says exactly what the second press will do - which pid
+    dies, which files go - and offers a plain link back out."""
+    b = busy()
+    who = (f"python -m agent.{html.escape(b)} gets SIGTERM, then SIGKILL if it "
+           f"is still there {GRACE_S:.0f}s later" if b else "nothing is running to stop")
+    if action == "end":
+        head, verb = "End this lap?", "Yes, end it ▸"
+        what = (f'<div class="h0s" style="margin-top:9px">{who}. The lap itself is '
+                'kept exactly where the worker left it — <span class="mono">runs/state.json</span>, '
+                'the wall and your renders are all untouched, and you can pick it '
+                'back up with Render or Finish.</div>')
+    else:
+        gone = ", ".join(str(p.relative_to(config.ROOT)) for p in reset.lap_paths())
+        head, verb = "Restart — clear this lap?", "Yes, clear it and start over ▸"
+        what = (f'<div class="h0s" style="margin-top:9px">{who}. Then this lap\'s files '
+                'are archived into <span class="mono">runs/archive/</span> and removed: '
+                f'<span class="mono">{html.escape(gone or "nothing on disk yet")}</span>.</div>'
+                '<div class="h0s" style="margin-top:7px">Published history is NOT touched: '
+                '<span class="mono">runs/wall.db</span> and the thumbnails and renders its '
+                'rows point at all survive — the Channel keeps every video you have shipped.</div>')
+    return f"""
+<div class="card" style="border-left:4px solid #C97B6B">
+<div class="h0">{head}</div>
+<div class="h0s">this page does not refresh itself — nothing happens until you press below</div>
+{what}
+<div class="foot"><a class="ghost" href="/">Cancel — go back</a>
+<form method="post" action="/ui/{action}" style="margin-left:auto">
+<input type="hidden" name="confirm" value="yes">
+<div style="text-align:right"><button class="danger">{verb}</button><br>
+<span style="font-size:12.5px;color:var(--sub)">this one does it</span></div></form></div></div>"""
+
+
 @app.get("/", response_class=HTMLResponse)
 def now_page(request: Request):
-    return page("now", now_body(), refresh="static" not in request.query_params)
+    return page("now", now_body() + escape_hatch(),
+                refresh="static" not in request.query_params)
 
 
 @app.get("/channel", response_class=HTMLResponse)
@@ -776,3 +986,43 @@ def ui_learn():
 def ui_bank():
     spawn_logged("bank")
     return RedirectResponse("/state", status_code=303)
+
+
+# ── the way out, as two buttons ──
+# KEPT on End: everything. The lap stays exactly where the worker left it.
+# KEPT on Restart: runs/wall.db (published history) and the thumbnails and
+# renders under app/static/ that its rows point at - deleting either would
+# leave the Channel page holding rows whose media is gone. scripts/reset.py
+# owns the other list; both buttons call it, so neither can drift.
+KEPT_ON_RESTART = ["runs/wall.db", "app/static/thumbs/", "app/static/renders/"]
+
+
+@app.post("/ui/end")
+def ui_end(confirm: str = Form("")):
+    """Stop the worker. Leave every artifact of the lap alone."""
+    if confirm != "yes":
+        return HTMLResponse(page("now", confirm_body("end"), refresh=False))
+    stopped = stop_worker()
+    # a worker killed mid-write can leave half a JSON file behind, and
+    # state.json is read by every page - so it never stays half-written
+    moved = reset.quarantine(config.STATE, config.BROKER)
+    cleared = [] if stopped.get("how") == "nothing was running" else ["runs/ui_busy.json"]
+    _receipt("end", stopped, cleared=cleared,
+             kept=["runs/state.json", "runs/broker.json", "runs/sessions.db",
+                   "runs/wall.db"], moved=moved)
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/ui/restart")
+def ui_restart(confirm: str = Form("")):
+    """Stop the worker, archive this lap's artifacts, clear them, start clean."""
+    if confirm != "yes":
+        return HTMLResponse(page("now", confirm_body("restart"), refresh=False))
+    stopped = stop_worker()               # first, so nothing writes behind us
+    out = reset.clear(archive=True)       # the SAME list scripts/reset.py uses
+    # stop_worker() already took the busy slot; say so rather than let the
+    # receipt imply it is still there
+    gone = ([] if stopped.get("how") == "nothing was running" else ["runs/ui_busy.json"])
+    _receipt("restart", stopped, cleared=gone + out["cleared"] + out["stuck"],
+             kept=KEPT_ON_RESTART, archive=out["archive"])
+    return RedirectResponse("/", status_code=303)

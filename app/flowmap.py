@@ -47,7 +47,7 @@ SUB = {
     "persist_direction": "user:prefs",
     "policy_check": "OK or BLOCK — a router",
     "quarantine": "the polite stop",
-    "scripter": "3 shots, quietly",
+    "scripter": "the video prompts",
     "store_script": "the ledger",
 }
 HUMAN = {"direction_gate"}         # the node that pauses FOR you
