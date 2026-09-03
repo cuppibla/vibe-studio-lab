@@ -148,7 +148,7 @@ EVENT_DEFAULT="$(env_get VIBETUBE_EVENT)"
 NAME_DEFAULT="$(env_get VIBETUBE_NAME)"
 if [ -z "$NAME_DEFAULT" ]; then
     # The local part of the signed-in gcloud account, tidied into a name:
-    # "annie.wang@example.com" → "Annie Wang".
+    # "test.user@example.com" → "Test User".
     ACCOUNT="$(gcloud config get-value account 2>/dev/null || true)"
     NAME_DEFAULT="$(printf '%s' "${ACCOUNT%%@*}" \
         | tr '._-' '   ' \

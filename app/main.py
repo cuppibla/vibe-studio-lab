@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import html
 import json
 import os
 import sqlite3
@@ -22,7 +23,8 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from agent import config, drive, state  # noqa: E402
-from world import simulator  # noqa: E402
+from app import stages  # noqa: E402  (pure reader over runs/*.json - no graph import)
+from world import broker, simulator  # noqa: E402
 # NOTE: `agent.lap` (→ agent.graph) is imported lazily inside now_body — in the
 # carved starter the EDGES hole raises on import, and Studio must stay up to
 # tell you which hole to fill instead of dying with the graph.
@@ -149,7 +151,26 @@ def outcomes(creator_id: str):
 # ══════════════════════════ the console ══════════════════════════
 
 BUSY = config.RUNS / "ui_busy.json"
+LAST = config.RUNS / "ui_last.json"   # how the last button ended, for the page
 PY = str(config.ROOT / ".venv" / "bin" / "python")
+
+
+def _worker_log(verb: str):
+    """Every button's child writes here, same as spawn_logged() - a worker that
+    dies must leave its reason on disk, or the page pends on it forever."""
+    return (config.RUNS / f"{verb}_run.log").open("w")
+
+
+def _started(verb: str, pid: int) -> None:
+    """One record per press: what is running, and no stale outcome from before."""
+    BUSY.write_text(json.dumps({"verb": verb, "pid": pid, "at": time.time()}))
+    LAST.unlink(missing_ok=True)
+
+
+def _finished(verb: str, code: int) -> None:
+    """...and how it ended. This used to be dropped on the floor."""
+    LAST.write_text(json.dumps({"verb": verb, "code": code, "at": time.time()}))
+    BUSY.unlink(missing_ok=True)
 
 
 def spawn(verb: str, *args) -> None:
@@ -157,19 +178,22 @@ def spawn(verb: str, *args) -> None:
     One at a time: a double-click must not start two runs."""
     if busy():
         return
-    p = subprocess.Popen([PY, "-m", f"agent.{verb}", *args], cwd=config.ROOT,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    BUSY.write_text(json.dumps({"verb": verb, "pid": p.pid, "at": time.time()}))
+    env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+    with _worker_log(verb) as log:            # the child keeps its own handle
+        p = subprocess.Popen([PY, "-m", f"agent.{verb}", *args], cwd=config.ROOT,
+                             env=env, stdout=log, stderr=subprocess.STDOUT)
+    _started(verb, p.pid)
 
 
 def spawn_force(verb: str, *args) -> None:
     """Like spawn(), but for the buttons that must never be swallowed by a
-    still-running worker (Approve/Regenerate). The previous job's pid rides
-    along in the environment; the child waits for it before starting - see
-    agent/auto.py _wait_for_pid."""
-    p = subprocess.Popen([PY, "-m", f"agent.{verb}", *args], cwd=config.ROOT,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    BUSY.write_text(json.dumps({"verb": verb, "pid": p.pid, "at": time.time()}))
+    still-running worker (Approve/Regenerate) - it skips the busy() check and
+    starts regardless."""
+    env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+    with _worker_log(verb) as log:
+        p = subprocess.Popen([PY, "-m", f"agent.{verb}", *args], cwd=config.ROOT,
+                             env=env, stdout=log, stderr=subprocess.STDOUT)
+    _started(verb, p.pid)
 
 
 def spawn_sh(verb: str, script: str) -> None:
@@ -178,12 +202,12 @@ def spawn_sh(verb: str, script: str) -> None:
     page tails while it runs."""
     if busy():
         return
-    log = (config.RUNS / "graph_run.log").open("w")
     env = {**os.environ, "PYTHONUNBUFFERED": "1",
            "PATH": f"{config.ROOT / '.venv' / 'bin'}:{os.environ.get('PATH', '')}"}
-    proc = subprocess.Popen(["bash", script], cwd=config.ROOT, env=env,
-                            stdout=log, stderr=subprocess.STDOUT)
-    BUSY.write_text(json.dumps({"verb": verb, "pid": proc.pid, "at": time.time()}))
+    with _worker_log(verb) as log:
+        proc = subprocess.Popen(["bash", script], cwd=config.ROOT, env=env,
+                                stdout=log, stderr=subprocess.STDOUT)
+    _started(verb, proc.pid)
 
 
 def spawn_logged(verb: str) -> None:
@@ -191,11 +215,11 @@ def spawn_logged(verb: str) -> None:
     page can show it - for the one-time CONNECT steps (the bank)."""
     if busy():
         return
-    log = (config.RUNS / f"{verb}_run.log").open("w")
     env = {**os.environ, "PYTHONUNBUFFERED": "1"}
-    p = subprocess.Popen([PY, "-m", f"agent.{verb}"], cwd=config.ROOT, env=env,
-                         stdout=log, stderr=subprocess.STDOUT)
-    BUSY.write_text(json.dumps({"verb": verb, "pid": p.pid, "at": time.time()}))
+    with _worker_log(verb) as log:
+        p = subprocess.Popen([PY, "-m", f"agent.{verb}"], cwd=config.ROOT, env=env,
+                             stdout=log, stderr=subprocess.STDOUT)
+    _started(verb, p.pid)
 
 
 def busy() -> str | None:
@@ -206,8 +230,10 @@ def busy() -> str | None:
         return None
     b = json.loads(BUSY.read_text())
     try:
-        if os.waitpid(b["pid"], os.WNOHANG)[0] == b["pid"]:
-            return None                      # it just finished; reaped now
+        pid, status = os.waitpid(b["pid"], os.WNOHANG)
+        if pid == b["pid"]:                  # it just finished; reaped now
+            _finished(b["verb"], os.waitstatus_to_exitcode(status))
+            return None
     except ChildProcessError:
         pass                                 # not ours / already reaped
     try:
@@ -215,6 +241,43 @@ def busy() -> str | None:
         return b["verb"]
     except OSError:
         return None
+
+
+def farm_note() -> str:
+    """Veo failed over? Say so on every card of the lap. A learner must never
+    finish this chapter believing a prebaked stand-in came out of Veo."""
+    dg = broker.degraded()
+    if not dg:
+        return ""
+    return f"""
+<div class="card" style="border-left:4px solid #E8945A;margin-bottom:18px">
+<div class="h0" style="font-size:19px">Veo is unreachable — this lap fell back to the prebaked clock.</div>
+<div class="h0s">retried once, then degraded so the lab keeps moving · the clips below are
+<b>stand-ins, not Veo output</b></div>
+<div class="h0s mono" style="margin-top:9px">{html.escape(dg.get("reason", ""))}</div></div>"""
+
+
+def failed_card() -> str:
+    """The other half of the log: a worker that exited non-zero used to vanish
+    here and leave the page pending forever. Say it died, and show the tail."""
+    if not LAST.exists():
+        return ""
+    try:
+        f = json.loads(LAST.read_text())
+    except (OSError, ValueError):
+        return ""
+    if not f.get("code"):
+        return ""                            # exited 0 - nothing to report
+    # the tail reader lives in app/stages.py - the stage list shows the last
+    # line of it as that stage's reason, and one implementation cannot disagree
+    # with itself about what the log said
+    tail = "<br>".join(html.escape(l) for l in stages.log_tail(f["verb"], 6))
+    return f"""
+<div class="card" style="border-left:4px solid #C97B6B;margin-bottom:18px">
+<div class="h0" style="font-size:19px">python -m agent.{f["verb"]} exited {f["code"]}.</div>
+<div class="h0s">nothing is running — the lap is exactly where the worker left it ·
+full output in <span class="mono">runs/{f["verb"]}_run.log</span></div>
+<div class="h0s mono" style="margin-top:11px;line-height:1.65">{tail}</div></div>"""
 
 
 CSS = """
@@ -293,6 +356,26 @@ select{border:1.5px solid var(--line);border-radius:13px;padding:10px 13px;font-
 .thumbprev{border-radius:16px;max-width:420px;display:block;margin:6px 0 2px}
 .note{font-size:13px;color:#5C5346;padding:2px 0}
 .x{color:#C97B6B;font-size:12px;text-decoration:none;margin-left:10px}
+.stlist{margin-top:16px;border-top:1px solid var(--line)}
+.stg{display:flex;gap:12px;align-items:flex-start;padding:10px 2px;border-bottom:1px solid var(--line)}
+.stg:last-child{border-bottom:none}
+.stm{width:18px;flex:none;text-align:center;font-size:13px;line-height:1.5;color:#C4B9A8}
+.stl{font-size:14.5px;font-weight:600;color:var(--sub)}
+.sts{font-size:12.5px;color:var(--sub);margin-top:2px}
+.stn{font-size:12px;color:#5C5346;margin-top:5px;line-height:1.6;word-break:break-word}
+.stw{font-size:10px;letter-spacing:.14em;font-weight:700;margin-left:9px;vertical-align:1px}
+.stg.pass .stm{color:#C96442}.stg.pass .stl{color:var(--ink)}.stg.pass .stw{color:#C96442}
+.stg.now .stm{color:#E9B44C}.stg.now .stl{color:var(--ink)}.stg.now .stw{color:#B4802A}
+.stg.now .stm{animation:p 1.2s infinite}
+.stg.fail .stm,.stg.fail .stw{color:#C97B6B}.stg.fail .stl{color:var(--ink)}
+.stg.fail .stn{color:#A65B4B}
+.stg.retry .stm,.stg.retry .stw{color:#E8945A}.stg.retry .stl{color:var(--ink)}
+.stg.degraded .stm,.stg.degraded .stw{color:#E8945A}.stg.degraded .stl{color:var(--ink)}
+.stg.blocked .stm,.stg.blocked .stw{color:#C97B6B}.stg.blocked .stl{color:var(--ink)}
+.stg.skip .stm,.stg.skip .stw{color:#B3A897}
+.stg.stall .stm,.stg.stall .stw{color:#8A8072}.stg.stall .stl{color:var(--ink)}
+.stg.wait .stm,.stg.wait .stw{color:#E9B44C}.stg.wait .stl{color:var(--ink)}
+.stk{color:#B4802A}
 """
 
 
@@ -332,12 +415,22 @@ def now_body() -> str:
 <div class="h0s" style="margin-top:14px">fill it in your editor, then come back — this page refreshes itself</div></div>"""
     st = state.load()
     b = busy()
-    busy_html = f'<div class="busy"><span class="dot"></span>{b} is running — this page refreshes itself</div>' if b else ""
+    busy_html = (f'<div class="busy"><span class="dot"></span>{b} is running — this page refreshes itself</div>'
+                 if b else failed_card())
+    busy_html += farm_note()
     if st.get("run_id"):
+        # WHERE the lap is, stage by stage - derived from runs/state.json,
+        # runs/broker.json and the worker logs, so it survives a restart. The
+        # detail stays in the two cards above: this list says which stage they
+        # belong to.
+        phase = lap.where().get("phase", "")
+        busy_html += stages.render(st, phase, b)
         # the live map of the workflow (nodes+edges dumped from the real
         # Workflow object), above every card of a running lap
         from app import flowmap
-        busy_html += flowmap.render(st, lap.where().get("phase", ""), MASCOT)
+        busy_html += flowmap.render(st, phase, MASCOT)
+    else:
+        busy_html += stages.render(st, "idle", b)
 
     if not st.get("run_id"):
         chip = ""
@@ -411,7 +504,7 @@ def now_body() -> str:
 <button class="ghost">Finish ▸</button></div></form>"""
         return busy_html + f"""
 <div class="card"><div class="h0">Rendering {done}/{len(st['shots'])}.</div>
-<div class="h0s">every wait is a row — the worker delivers each one by id, then this lap finishes itself{" · three Veo shots, a minute or three each" if config.REAL_VIDEO else ""}</div>{fallback}</div>"""
+<div class="h0s">every wait is a row — the worker delivers each one by id, then this lap finishes itself{" · three Veo shots, a minute or three each" if config.REAL_VIDEO and not broker.degraded() else ""}</div>{fallback}</div>"""
 
     if st.get("script"):
         ev_chips = ""
