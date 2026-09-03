@@ -200,10 +200,13 @@ def gate_graph():
         f"WHERE v.creator_id='{me}'").result())).c
     check("YOUR first-party rows are aligned into the graph", n >= 24, str(n))
     from bqgraph import queries
+    drops, _ = queries.drop_report(me)
+    check("the graph answers about YOU (graph#1 - where do I lose people)", len(drops) >= 1)
+    # neighbors need shared FINISHERS; before the conclusion-first lesson few
+    # panel members finish, so this reading is reported, not required
     rows, engine = queries.taste_neighbors(me)
-    check("the graph answers about YOU (taste neighbors)", len(rows) >= 1)
-    print(f"    engine: {engine}" + ("" if engine == "gql"
-          else " — GQL fell back (edition wall); same rows via the SQL twin"))
+    print(f"    graph#2 taste neighbors: {len(rows)} row(s) · engine: {engine}"
+          + ("" if engine == "gql" else " — GQL fell back (edition wall); same rows via the SQL twin"))
 
 
 def gate_memory():
