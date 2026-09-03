@@ -368,6 +368,8 @@ def control_card() -> str:
         r = json.loads(CONTROL.read_text())
     except (OSError, ValueError):
         return ""
+    if r.get("action") == "retry":
+        return retry_card(r)          # same file, same slot, its own grammar
     s = r.get("stopped") or {}
     verb, pid = s.get("verb"), s.get("pid")
     who = f"python -m agent.{verb}" + (f" (pid {pid})" if pid else "") if verb else ""
@@ -427,6 +429,101 @@ def failed_card() -> str:
 <div class="h0s">nothing is running — the lap is exactly where the worker left it ·
 full output in <span class="mono">runs/{f["verb"]}_run.log</span></div>
 <div class="h0s mono" style="margin-top:11px;line-height:1.65">{tail}</div></div>"""
+
+
+# ── Retry: one stage, re-run ────────────────────────────────────────────────
+# The lesson this closes: a Veo 429 is a quota WINDOW, not a verdict, and the
+# only way back used to be Restart - which threw away the research, the
+# direction the learner picked and the script to re-attempt one render. Retry
+# re-runs ONE stage and keeps the rest of the lap exactly where it is.
+
+def retry_target(stage: str, busy_verb: str | None = None) -> str | None:
+    """Which worker a Retry on `stage` would run, or None if that row is not
+    offering one right now.
+
+    Asks app/stages.py, off the same stage_states() the page renders from, so
+    the button that was drawn and the check that runs cannot disagree - and a
+    stale form (or a hand-written POST) cannot make the server re-run a stage
+    whose row has since gone green.
+    """
+    try:
+        from agent import lap
+        phase = lap.where().get("phase", "")
+    except Exception:
+        phase = ""                    # a hole is open, or no lap: no phase to read
+    return stages.retryable(state.load(), phase, busy_verb).get(stage)
+
+
+def discard_standin_shots() -> list[str]:
+    """The runs/state.json half of the discard broker.undegrade() does on the
+    farm's side. Returns the shots it took back.
+
+    Why it has to happen in the same breath as the un-degrade: `farm_note()`
+    and the DEGRADED row are the only two things on the page that say "these
+    clips are STAND-INS, not Veo output", and BOTH key off broker.degraded().
+    Clear that flag while prebaked urls are still sitting in state.json and the
+    page would show stand-ins as a passed render with no warning over them -
+    the exact dishonesty the failover was built to prevent. So the stand-ins go
+    back to `submitted` at the same moment, which is also precisely what
+    `agent.render` is about to write for them (agent/render.py).
+
+    Only stand-ins are touched. A shot Veo actually delivered keeps its url:
+    it is real, it is paid for, and nothing here throws it away.
+    """
+    st = state.load()
+    taken = []
+    for s in st.get("shots") or []:
+        url = str(s.get("url") or "")
+        if s.get("status") == "fallback" or url.startswith("prebaked/"):
+            taken.append(url or str(s.get("prompt", ""))[:60])
+            s.pop("url", None)
+            s["status"] = "submitted"
+    if taken:
+        state.save(st)
+    return taken
+
+
+def _retry_receipt(stage: str, verb: str, ok: bool, note: str = "",
+                   undegraded: list | None = None, retired: list | None = None,
+                   discarded: list | None = None) -> None:
+    """One record per Retry press, in the same slot _receipt() uses so the page
+    only ever has one of these to show. MUST be written after spawn(): the
+    _started() inside it clears this file on purpose, so a receipt written
+    first would be wiped by its own success."""
+    CONTROL.write_text(json.dumps({
+        "action": "retry", "at": time.time(), "stage": stage, "verb": verb,
+        "ok": ok, "note": note, "undegraded": undegraded or [],
+        "retired": retired or [], "discarded": discarded or [],
+    }))
+
+
+def retry_card(r: dict) -> str:
+    """What a Retry just did - or refused to do - in the same grammar as
+    control_card() and failed_card(): what was re-run, and what it cost."""
+    stage = str(r.get("stage") or "")
+    label = stages.STAGE_LABEL.get(stage, stage or "that stage")
+    verb = str(r.get("verb") or "")
+    if not r.get("ok"):
+        return f"""
+<div class="card" style="border-left:4px solid #8A8072;margin-bottom:18px">
+<div class="h0" style="font-size:19px">Retry refused &mdash; nothing was re-run.</div>
+<div class="h0s">{html.escape(str(r.get("note") or ""))}</div>
+<div class="h0s" style="margin-top:7px">the lap is exactly where it was &mdash;
+this refused before it spawned anything</div></div>"""
+    rows = [f'<div class="h0s">nothing else was touched &mdash; the research, your '
+            f'direction and the script are all still on disk</div>']
+    for label_, items in (("cleared the Veo failover", r.get("undegraded") or []),
+                          ("retired prebaked stand-ins", r.get("retired") or []),
+                          ("took back for re-render", r.get("discarded") or [])):
+        if items:
+            rows.append(f'<div class="h0s" style="margin-top:7px">{html.escape(label_)}: '
+                        f'<span class="mono">{html.escape(", ".join(str(i) for i in items))}'
+                        f'</span></div>')
+    return f"""
+<div class="card" style="border-left:4px solid #8A8072;margin-bottom:18px">
+<div class="h0" style="font-size:19px">Re-running &ldquo;{html.escape(label)}&rdquo; &mdash;
+python -m agent.{html.escape(verb)}.</div>
+{"".join(rows)}</div>"""
 
 
 CSS = """
@@ -514,6 +611,9 @@ select{border:1.5px solid var(--line);border-radius:13px;padding:10px 13px;font-
 .sts{font-size:12.5px;color:var(--sub);margin-top:2px}
 .stn{font-size:12px;color:#5C5346;margin-top:5px;line-height:1.6;word-break:break-word}
 .stw{font-size:10px;letter-spacing:.14em;font-weight:700;margin-left:9px;vertical-align:1px}
+.stf{margin-top:8px}
+.stbtn{border:1.5px solid var(--line);background:#fff;color:#A65B4B;font-size:12px;font-weight:600;padding:6px 13px;border-radius:11px;cursor:pointer}
+.stbtn:hover{border-color:#C97B6B}
 .stg.pass .stm{color:#C96442}.stg.pass .stl{color:var(--ink)}.stg.pass .stw{color:#C96442}
 .stg.now .stm{color:#E9B44C}.stg.now .stl{color:var(--ink)}.stg.now .stw{color:#B4802A}
 .stg.now .stm{animation:p 1.2s infinite}
@@ -732,12 +832,76 @@ this click stops nothing and clears nothing</div>
 </div></form></div></div>"""
 
 
-def confirm_body(action: str) -> str:
+def _confirm_retry(stage: str) -> str:
+    """The money page. Same two-press shape as End / Restart - this render is
+    the first press and re-runs nothing - but what it has to spell out is
+    different: which single stage goes again, whether that dials Veo (and so
+    spends real money), and what the un-degrade throws away to do it.
+    """
+    verb = retry_target(stage) or ""
+    label = stages.STAGE_LABEL.get(stage, stage or "that stage")
+    st = state.load()
+    lines = [f'<div class="h0s" style="margin-top:9px">Only this one stage runs again: '
+             f'<b>{html.escape(label)}</b>, by way of '
+             f'<span class="mono">python -m agent.{html.escape(verb)}</span>. Every other '
+             f'stage keeps what it has &mdash; your research, the direction you picked and '
+             f'the script are not touched, which is the whole difference between this and '
+             f'Restart.</div>']
+    if stage == "render":
+        shots = st.get("shots") or (st.get("script") or {}).get("shots") or []
+        n = len(shots) or 3
+        dg = broker.degraded()
+        if config.REAL_VIDEO:
+            lines.append('<div class="h0s" style="margin-top:9px"><b>This spends money.</b> '
+                         f'{n} shot{"s" if n != 1 else ""} go back to Veo '
+                         f'(<span class="mono">{html.escape(broker.VEO_MODEL)}</span>), one '
+                         'long-running operation each, plus one thumbnail. If the quota '
+                         'window that refused you has not reopened, it will simply degrade '
+                         'again and say so &mdash; you will not be charged for a call Veo '
+                         'refuses, but you will be charged for the ones it accepts.</div>')
+        else:
+            lines.append('<div class="h0s" style="margin-top:9px">'
+                         '<span class="mono">STUDIO_REAL_VIDEO=0</span> &mdash; the farm is on '
+                         'the prebaked clock, so this re-runs the stage without calling Veo '
+                         'and without spending anything.</div>')
+        if dg:
+            lines.append('<div class="h0s" style="margin-top:9px">This lap is currently '
+                         'DEGRADED. The failover flag in '
+                         '<span class="mono">runs/broker.json</span> is cleared first '
+                         '(<span class="mono">broker.undegrade()</span>), and every prebaked '
+                         'stand-in is retired and re-rendered &mdash; a stand-in is not Veo '
+                         'output and this lap will not keep one and call it one. Nothing is '
+                         'deleted from disk: the retired jobs stay in '
+                         '<span class="mono">runs/broker.json</span> under '
+                         '<span class="mono">retired</span>, and '
+                         '<span class="mono">runs/wall.db</span> and everything under '
+                         '<span class="mono">app/static/renders/</span> are untouched.</div>')
+    else:
+        lines.append('<div class="h0s" style="margin-top:9px">No Veo call and no video '
+                     'spend &mdash; this re-runs the worker, nothing else.</div>')
+    return f"""
+<div class="card" style="border-left:4px solid #C97B6B">
+<div class="h0">Retry &ldquo;{html.escape(label)}&rdquo;?</div>
+<div class="h0s">this page does not refresh itself &mdash; nothing happens until you press below</div>
+{"".join(lines)}
+<div class="foot"><a class="ghost" href="/">Cancel &mdash; go back</a>
+<form method="post" action="/ui/retry" style="margin-left:auto">
+<input type="hidden" name="confirm" value="yes">
+<input type="hidden" name="stage" value="{html.escape(stage, quote=True)}">
+<div style="text-align:right"><button class="danger">Yes, re-run
+{html.escape(label)} &#9656;</button><br>
+<span style="font-size:12.5px;color:var(--sub)">this one does it</span></div></form></div></div>"""
+
+
+def confirm_body(action: str, stage: str = "") -> str:
     """Step one of two. Says exactly what the second press will do - which pid
-    dies, which files go - and offers a plain link back out."""
+    dies, which files go, what gets re-dialled and whether that costs money -
+    and offers a plain link back out."""
     b = busy()
     who = (f"python -m agent.{html.escape(b)} gets SIGTERM, then SIGKILL if it "
            f"is still there {GRACE_S:.0f}s later" if b else "nothing is running to stop")
+    if action == "retry":
+        return _confirm_retry(stage)
     if action == "end":
         head, verb = "End this lap?", "Yes, end it ▸"
         what = (f'<div class="h0s" style="margin-top:9px">{who}. The lap itself is '
@@ -1010,6 +1174,56 @@ def ui_end(confirm: str = Form("")):
     _receipt("end", stopped, cleared=cleared,
              kept=["runs/state.json", "runs/broker.json", "runs/sessions.db",
                    "runs/wall.db"], moved=moved)
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/ui/retry")
+def ui_retry(stage: str = Form(""), confirm: str = Form("")):
+    """Re-run ONE stage. The row that failed says which, and nothing else moves.
+
+    Same two-press shape as End / Restart: the first POST only renders the
+    confirm page (which is where the Veo spend is spelled out), and only a
+    second POST carrying confirm=yes re-runs anything.
+
+    busy() is read FIRST, and read by the one function allowed to decide it -
+    it reaps, so a finished-but-unwaited child cannot make this refuse
+    forever. A live worker means a clean 303 with a receipt saying why; it
+    never spawns a second worker over the top of one that is running.
+    """
+    b = busy()
+    if b:
+        _retry_receipt(stage, "", ok=False,
+                       note=f"python -m agent.{b} is still running. Retry never "
+                            f"starts a second worker over a live one - stop it "
+                            f"with End the lap, or wait for it to finish.")
+        return RedirectResponse("/", status_code=303)
+
+    verb = retry_target(stage)
+    if not verb:
+        label = stages.STAGE_LABEL.get(stage, stage or "that stage")
+        _retry_receipt(stage, "", ok=False,
+                       note=f"\u201c{label}\u201d is not offering a Retry right now - only a "
+                            f"stage that FAILED, STALLED or DEGRADED and has a worker "
+                            f"verb of its own can be re-run on its own.")
+        return RedirectResponse("/", status_code=303)
+
+    if confirm != "yes":
+        return HTMLResponse(page("now", confirm_body("retry", stage), refresh=False))
+
+    undegraded, retired, discarded = [], [], []
+    if stage == "render":
+        # the one-way flag, undone - and undone in BOTH artifacts at once, so
+        # the page is never showing a stand-in with the failover banner already
+        # gone from over it
+        out = broker.undegrade(f"retry: re-running the {stage} stage")
+        if out.get("undegraded"):
+            undegraded = [str((out.get("was") or {}).get("reason", "the failover"))]
+            retired = list(out.get("retired") or [])
+            discarded = discard_standin_shots()
+
+    spawn(verb)                    # _started() inside clears the receipt slot...
+    _retry_receipt(stage, verb, ok=True, undegraded=undegraded,
+                   retired=retired, discarded=discarded)   # ...so write it after
     return RedirectResponse("/", status_code=303)
 
 

@@ -52,6 +52,17 @@ VERB_STAGE = {
     "auto": None,          # direction / ship / rethumb - decided by position
 }
 
+# The same table read backwards: the stage a Retry re-runs, and the verb it
+# runs to do it. Derived from VERB_STAGE rather than written out again, so the
+# two can never drift. `auto` maps to None (it drives three different buttons,
+# resolved by position) and therefore contributes no stage - which is the right
+# answer: none of the rows it touches can be re-run on their own.
+STAGE_VERB = {stage: verb for verb, stage in VERB_STAGE.items() if stage}
+
+# The label for a key, for anything that has to NAME a stage back to the user
+# (the confirm page, the receipt). Same list, one source.
+STAGE_LABEL = {key: label for key, label, _ in STAGES}
+
 PASS, NOW, FAIL, RETRY, DEGRADED, BLOCKED, SKIP, IDLE, STALL, WAIT = (
     "pass", "now", "fail", "retry", "degraded", "blocked", "skip", "idle",
     "stall", "wait")
@@ -316,6 +327,66 @@ def stage_states(st: dict, phase: str, busy_verb: str | None,
     return rows
 
 
+# ── which rows may be re-run on their own ───────────────────────────────────
+# A stage is worth re-running when it DIED (FAIL), when it is sitting there
+# with no worker behind it (STALL), or when it fell back to the prebaked clock
+# (DEGRADED). Deliberately not: PASS and NOW (fine, or already moving), RETRY
+# (a retry is in flight - a second one would race it), WAIT (the human IS the
+# next step; that row's own form is the retry), IDLE, SKIP and BLOCKED (nothing
+# has happened yet, or a verdict was reached and re-running changes nothing).
+RERUNNABLE = (FAIL, STALL, DEGRADED)
+
+
+def retry_verb(row: dict) -> str | None:
+    """The worker `Retry` re-runs for this row - or None if this row offers no
+    Retry at all.
+
+    Two gates, both read off things that already exist: the row has to be in a
+    re-runnable state, and STAGE_VERB (i.e. VERB_STAGE backwards) has to name a
+    verb that drives it. Rows with no verb of their own are never offered the
+    button, because there is nothing to re-run in isolation - see RETRY.md for
+    the list and the reason for each.
+
+    Note it is always the row's OWN verb, never whichever verb happened to die.
+    `_blame` can pin a dead worker on a row further down the lap, and a button
+    that says "Retry" on the render row while quietly running agent.finish
+    would be exactly the sort of thing this list exists to stop.
+    """
+    if row.get("status") not in RERUNNABLE:
+        return None
+    return STAGE_VERB.get(row.get("key"))
+
+
+def retryable(st: dict, phase: str, busy_verb: str | None,
+              pend_thumb: bool = False) -> dict:
+    """{stage key: verb} for every row offering Retry right now.
+
+    The page draws its buttons from this and the POST handler validates against
+    it, so a stale form cannot make the server run something the row was not
+    offering by the time it arrived.
+    """
+    out = {}
+    for r in stage_states(st, phase, busy_verb, pend_thumb):
+        v = retry_verb(r)
+        if v:
+            out[r["key"]] = v
+    return out
+
+
+def retry_form(key: str, label: str, verb: str) -> str:
+    """One Retry button, on one row. Plain form -> POST -> 303, the same idiom
+    as every other button in this app, and no JavaScript anywhere.
+
+    The button NAMES the stage and the command, so there is never a question
+    about which row it belongs to or what it is about to run. The POST only
+    reaches a confirm page; nothing is re-run on this click.
+    """
+    return (f'<form class="stf" method="post" action="/ui/retry">'
+            f'<input type="hidden" name="stage" value="{html.escape(key, quote=True)}">'
+            f'<button class="stbtn">&#8635; Retry &#8220;{html.escape(label)}&#8221; '
+            f'&mdash; python -m agent.{html.escape(verb)}</button></form>')
+
+
 # ── the markup ───────────────────────────────────────────────────────────────
 
 MARK = {PASS: "✓", NOW: "●", FAIL: "✕", RETRY: "↻", DEGRADED: "▲",
@@ -345,11 +416,15 @@ def render(st: dict, phase: str, busy_verb: str | None,
         badge = (f'<span class="stw">{html.escape(word)}</span>' if word else "")
         note = (f'<div class="stn mono">{html.escape(r["note"])}</div>'
                 if r["note"] else "")
+        # the one control that lives ON a row: re-run just this stage. Only the
+        # rows retry_verb() vouches for get one.
+        v = retry_verb(r)
+        retry = retry_form(r["key"], r["label"], v) if v else ""
         out.append(
             f'<div class="stg {r["status"]}">'
             f'<span class="stm">{MARK[r["status"]]}</span>'
             f'<div class="stb"><div class="stl">{html.escape(r["label"])}{badge}</div>'
-            f'<div class="sts">{html.escape(r["sub"])}</div>{note}</div></div>')
+            f'<div class="sts">{html.escape(r["sub"])}</div>{note}{retry}</div></div>')
 
     room = st.get("room") or {}
     link = ""
