@@ -21,7 +21,9 @@ import time
 
 from agent import config
 
-VEO_MODEL = os.environ.get("STUDIO_VEO_MODEL", "veo-3.1-fast-generate-preview")
+# the same model wears two names: `-preview` on AI Studio, `-001` on Vertex
+VEO_MODEL = os.environ.get("STUDIO_VEO_MODEL") or (
+    "veo-3.1-fast-generate-001" if config.VERTEX else "veo-3.1-fast-generate-preview")
 RENDERS = config.ROOT / "app" / "static" / "renders"
 WEB = "/static/renders"
 # the same house style the thumbnail studio locks, spoken to a video model
