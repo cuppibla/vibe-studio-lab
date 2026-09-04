@@ -1272,7 +1272,12 @@ def confirm_body(action: str, stage: str = "") -> str:
                 f'<span class="mono">{html.escape(gone or "nothing on disk yet")}</span>.</div>'
                 '<div class="h0s" style="margin-top:7px">Published history is NOT touched: '
                 '<span class="mono">runs/wall.db</span> and the thumbnails and renders its '
-                'rows point at all survive — the Channel keeps every video you have shipped.</div>')
+                'rows point at all survive — the Channel keeps every video you have shipped.</div>'
+                '<div class="h0s" style="margin-top:7px">Neither is the channel\'s taste: the '
+                '<span class="mono">user:</span> keys are carried into the new '
+                '<span class="mono">runs/sessions.db</span> — <span class="mono">user:prefs</span> '
+                'and the rest are per-USER, not per-lap, so the next idea box still opens '
+                'pre-filled. Only this lap\'s session is dropped.</div>')
     return f"""
 <div class="card" style="border-left:4px solid #C97B6B">
 <div class="h0">{head}</div>
@@ -1533,6 +1538,9 @@ def ui_bank():
 # renders under app/static/ that its rows point at - deleting either would
 # leave the Channel page holding rows whose media is gone. scripts/reset.py
 # owns the other list; both buttons call it, so neither can drift.
+# The channel's TASTE is kept too, but it is not a path and it is not a fixed
+# list: reset.clear() reports the `user:` keys it actually carried across the
+# sessions.db swap, and ui_restart() appends those to this one.
 KEPT_ON_RESTART = ["runs/wall.db", "app/static/thumbs/", "app/static/renders/"]
 
 
@@ -1613,5 +1621,6 @@ def ui_restart(confirm: str = Form("")):
     # receipt imply it is still there
     gone = ([] if stopped.get("how") == "nothing was running" else ["runs/ui_busy.json"])
     _receipt("restart", stopped, cleared=gone + out["cleared"] + out["stuck"],
-             kept=KEPT_ON_RESTART, archive=out["archive"])
+             kept=KEPT_ON_RESTART + out.get("kept_user_state", []),
+             archive=out["archive"])
     return RedirectResponse("/", status_code=303)
