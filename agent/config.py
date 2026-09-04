@@ -31,8 +31,7 @@ if VERTEX:
 else:
     os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
 
-MODEL = os.environ.get("STUDIO_MODEL",
-                       "gemini-2.5-flash" if VERTEX else "gemini-flash-latest")
+MODEL = os.environ.get("STUDIO_MODEL", "gemini-3-flash-preview")   # same id on Vertex and AI Studio
 STUDIO_URL = os.environ.get("STUDIO_URL", "http://127.0.0.1:4600")
 DB_URL = f"sqlite+aiosqlite:///{RUNS}/sessions.db"
 APP = "vibestudio"
