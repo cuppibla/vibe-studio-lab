@@ -66,8 +66,15 @@ def leg(text_or_answer) -> None:
         print(out.strip()[:600])
 
 
-def where() -> dict:
-    """Phase detection for prompts + the Studio Now card."""
+def where(pend=None) -> dict:
+    """Phase detection for prompts + the Studio Now card.
+
+    Everything but the last branch is read off the clipboard. That last branch
+    needs the workflow session's open calls, which cost a whole asyncio.run() -
+    so a caller that has ALREADY read them (Studio renders one page from one
+    trip to the session store) may hand them in rather than pay again. Passing
+    nothing keeps the old behaviour exactly: read them here.
+    """
     st = state.load()
     if not st.get("run_id"):
         return {"phase": "idle"}
@@ -77,7 +84,8 @@ def where() -> dict:
         return {"phase": "blocked", **st["blocked"]}
     if st.get("script"):
         return {"phase": "scripted", "title": st["script"]["title"]}
-    pend = drive.run(drive.pending(wf_sid()))
+    if pend is None:
+        pend = drive.run(drive.pending(wf_sid()))
     for cid, name, resp in pend:
         if name == "adk_request_input":
             return {"phase": "form", "call": (cid, name),

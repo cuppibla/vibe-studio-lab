@@ -626,6 +626,11 @@ select{border:1.5px solid var(--line);border-radius:13px;padding:10px 13px;font-
 .stg.stall .stm,.stg.stall .stw{color:#8A8072}.stg.stall .stl{color:var(--ink)}
 .stg.wait .stm,.stg.wait .stw{color:#E9B44C}.stg.wait .stl{color:var(--ink)}
 .stk{color:#B4802A}
+.hold{margin-left:auto;display:flex;align-items:center;gap:10px}
+.hold .live{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--sub)}
+.hold .held{font-size:11.5px;color:var(--sub);max-width:230px;line-height:1.35}
+.tab.upd{border:1.5px solid var(--line);color:var(--ink);font-weight:600;padding:6px 13px}
+.tab.upd:hover{border-color:var(--amber)}
 """
 
 
@@ -663,49 +668,239 @@ def image_ready(ref: str) -> bool:
         return False
 
 
-def suggest_topic() -> str:
-    """PERSISTENT STATE, visible: user:prefs remembers your last direction
-    across every session, so the next visit can open with a suggestion."""
+# ── reading the session store without paying for it three times ────────────
+# Every drive.run() is a WHOLE asyncio.run(): a fresh loop, a fresh
+# DatabaseSessionService (SQLAlchemy over aiosqlite), the queries, then the
+# teardown drive.run() does so aiosqlite's threads cannot outlive their loop.
+# Measured on this box the loop+engine costs ~23ms and the query inside it is
+# noise, so a page that calls drive.run() three times has bought the same
+# engine three times. It is the page's whole latency floor - and a slow page is
+# a page whose buttons are harder to hit.
+#
+# Two ideas, in this order:
+#   1. do not ask at all when the answer is already on the clipboard
+#      (see suggest_topic)
+#   2. when you must ask, ask ONCE - one loop, one service, every session id
+#      in the same coroutine. That is precisely what drive.py's per-loop cache
+#      is FOR, so this leans on that fix rather than working around it.
+
+SESSIONS_DB = Path(str(config.DB_URL).split("///")[-1])
+
+
+def sessions_fingerprint() -> tuple[int, int]:
+    """What a page's view of the session store depends on, as one value.
+
+    runs/sessions.db is journal_mode=delete (no WAL sidecar), so every
+    COMMITTED append_event moves (st_mtime_ns, st_size) and a pure read does
+    not. That makes it a real invalidant: it changes because the world changed.
+
+    This is the ONLY thing allowed to expire the caches below. Never a clock.
+    A timer can only ever guess, and in a lab whose whole thesis is durable
+    state, a page that reports a wait the worker already answered is worse than
+    a page that took 90ms.
+    """
+    try:
+        s = SESSIONS_DB.stat()
+        return (s.st_mtime_ns, s.st_size)
+    except OSError:
+        return (0, 0)
+
+
+_pending_by_sid: dict[str, tuple[tuple[int, int], list]] = {}
+
+
+def pending_for(*session_ids: str) -> dict[str, list]:
+    """Open calls for these sessions: {session_id: [(call_id, name, resp), ...]}.
+
+    Anything already known AT THE CURRENT FINGERPRINT is free. Whatever is left
+    is fetched in ONE drive.run() - one loop, one service, one dispose - no
+    matter how many session ids are missing.
+
+    The store is fingerprinted before AND after the read: if a worker committed
+    while we were reading, the answer may already describe a wait that has been
+    answered, so it is handed to this one caller and deliberately NOT
+    remembered. Only a read that provably spanned no write is cached.
+    """
+    if not session_ids:
+        return {}
+    fp = sessions_fingerprint()
+    out: dict[str, list] = {}
+    miss: list[str] = []
+    for sid in session_ids:
+        hit = _pending_by_sid.get(sid)
+        if hit is not None and hit[0] == fp:
+            out[sid] = hit[1]
+        else:
+            miss.append(sid)
+    if miss:
+        async def _all() -> dict[str, list]:
+            # sequential awaits on ONE loop: drive.svc() hands back the same
+            # service to each, and drive.run() closes it once on the way out
+            return {sid: await drive.pending(sid) for sid in miss}
+
+        try:
+            got = drive.run(_all())
+        except Exception:
+            got = {sid: [] for sid in miss}
+        unmoved = sessions_fingerprint() == fp
+        for sid, v in got.items():
+            out[sid] = v
+            if unmoved:
+                _pending_by_sid[sid] = (fp, v)
+            else:
+                _pending_by_sid.pop(sid, None)
+    return out
+
+
+_probe_cache: tuple[tuple[int, int], str] = ((-1, -1), "")
+
+
+def _probe_last_direction() -> str:
+    """The one read state.json genuinely cannot answer - memoised on the store's
+    own fingerprint, so an idle studio being polled does not re-pay it."""
+    global _probe_cache
+    fp = sessions_fingerprint()
+    if _probe_cache[0] == fp:
+        return _probe_cache[1]
     try:
         prefs = drive.run(drive.ensure_user_state("_ui_probe")).get("user:prefs") or {}
-        return prefs.get("last_direction", "")
+        out = prefs.get("last_direction", "")
     except Exception:
         return ""
+    # ensure_user_state CREATES the session when it is missing, which is itself
+    # a write - so the first call after a reset legitimately fails this check
+    # and simply is not cached. The next one is.
+    if sessions_fingerprint() == fp:
+        _probe_cache = (fp, out)
+    return out
 
+
+def suggest_topic() -> str:
+    """PERSISTENT STATE, visible: user:prefs remembers your last direction
+    across every session, so the next visit can open with a suggestion.
+
+    graph.pick_direction writes `user:prefs["last_direction"]` and state.json's
+    `direction` in the same breath from the same value, so whenever there is a
+    lap on the clipboard the answer is ALREADY in the file this page loads
+    anyway - reading it back out of the session store is a 23ms round trip to
+    learn something we wrote ourselves. Only a cleared clipboard (a brand new
+    studio, or Restart) has to go and ask.
+    """
+    st = state.load()
+    known = st.get("direction") or (st.get("prefs") or {}).get("last_direction", "")
+    if known:
+        return str(known)
+    return _probe_last_direction()
+
+
+
+REFRESH_S = 4      # unchanged: what a LIVE page (nothing to press) waits
 
 
 def page(tab: str, body: str, refresh: bool = True) -> str:
+    """One chrome, and the one place that decides whether the browser navigates.
+
+    THE RULE - a page auto-refreshes only while it is waiting on the machine,
+    never while it is waiting on YOU. `refresh` is that verdict, and the caller
+    that knows the state computes it; see now_body().
+
+    A meta refresh is a NAVIGATION. Four seconds after the document is parsed
+    the browser tears it down, and a click that has not already left the
+    browser leaves at all - no error, no POST, nothing in the access log. The
+    confirm pages worked this out first ("so it can't bounce out from under the
+    cursor"); this applies the same reasoning to every page that asks for a
+    press.
+
+    Wherever the navigation is off, the top bar gets an explicit Update - a
+    plain link, the same idiom as the tabs beside it, no JavaScript. A link the
+    human chooses to follow cannot race the click they were about to make.
+    """
+    here = "/" if tab == "now" else f"/{tab}"
     tabs = "".join(
         f'<a class="tab{" on" if tab == t.lower() else ""}" href="/{"" if t == "Now" else t.lower()}">{t}</a>'
         for t in ("Now", "Channel", "State", "World"))
-    meta = '<meta http-equiv="refresh" content="4">' if refresh else ""
+    if refresh:
+        meta = f'<meta http-equiv="refresh" content="{REFRESH_S}">'
+        hold = (f'<span class="live"><span class="dot"></span>live &middot; '
+                f'this page updates itself every {REFRESH_S}s</span>')
+    else:
+        meta = ""
+        hold = (f'<a class="tab upd" href="{here}">&#8635;&nbsp;Update</a>'
+                f'<span class="held">holding still &mdash; it is your turn, so '
+                f'nothing moves under the cursor</span>')
     return f"""<!doctype html><html><head><meta charset="utf-8">{meta}
 <title>Vibe Studio</title><style>{CSS}</style></head><body>
 <div class="top"><img class="logo" src="/static/art/gem-3.png"><span class="brand">Vibe Studio</span>
 <div class="tabs">{tabs}</div>
+<div class="hold">{hold}</div>
 </div>
 <div class="wrap">{body}</div></body></html>"""
 
 
-def now_body() -> str:
+# ── who is this page waiting for? ──────────────────────────────────────────
+# The two states are very nearly exclusive, and that is the whole fix:
+#
+#   LIVE  - the machine is moving the lap along and this card offers the human
+#           nothing to press. The view goes stale by itself, so it must refresh
+#           by itself. There is no click here for a navigation to destroy.
+#
+#   ASKS  - this card is holding a control the human is meant to press, or a
+#           field they are meant to type into. A navigation here destroys the
+#           click mid-dispatch and empties the field, and the human is told
+#           nothing. So: no navigation. The top bar carries an Update link
+#           instead, and the human decides when the page moves.
+#
+# Note which way the doubt falls. LIVE has to be EARNED - a page qualifies only
+# when there is genuinely nothing to press. Everything else asks.
+LIVE, ASKS = True, False
+
+
+def now_body() -> tuple[str, bool]:
+    """The Now card, and whether it may navigate on its own. See LIVE / ASKS."""
     try:
         from agent import lap  # noqa: F401 — may raise while holes are open
     except NotImplementedError as e:
+        # Nothing on this card is pressable and nothing here is a worker: it
+        # changes when the student saves a file in their editor. There is no
+        # click to lose, and the copy already promises the page comes back on
+        # its own - so it does.
         return f"""<div class="card"><div class="h0">A hole is open.</div>
 <div class="h0s mono" style="margin-top:10px">{str(e)}</div>
-<div class="h0s" style="margin-top:14px">fill it in your editor, then come back — this page refreshes itself</div></div>"""
+<div class="h0s" style="margin-top:14px">fill it in your editor, then come back — this page refreshes itself</div></div>""", LIVE
     st = state.load()
     b = busy()
+    rid = st.get("run_id") or ""
+    # ONE trip to the session store for the whole render: where() needs the
+    # workflow session's open calls and the thumb card needs the thumb
+    # session's, and pending_for() answers both from a single loop + service.
+    #
+    # Which ids to ask for is only a HINT, and deliberately cannot be wrong:
+    # guess too few for where() and it just reads its own, as it always did.
+    # (The _thumb guard is the exception and is exact - the published card
+    # returns above the thumb card, so that id is genuinely never consulted.)
+    need: list[str] = []
+    if rid and not st.get("published"):
+        if not (st.get("script") or st.get("blocked")):
+            need.append(f"{rid}_wf")     # where() reads this only when it must
+        need.append(f"{rid}_thumb")
+    pend = pending_for(*need)
+    w = lap.where(pend.get(f"{rid}_wf")) if rid else lap.where()
     busy_html = (f'<div class="busy"><span class="dot"></span>{b} is running — this page refreshes itself</div>'
                  if b else failed_card())
     busy_html += farm_note()
     busy_html += control_card()          # what End / Restart just did, if anything
+    # Does the stage list itself put a control on this page? A row only grows a
+    # Retry when its stage FAILED, STALLED or DEGRADED - which is the page
+    # asking the human to decide, on exactly the reasoning above. Asked of the
+    # same function the /ui/retry handler consults, so the two cannot drift.
+    offers_retry = False
     if st.get("run_id"):
         # WHERE the lap is, stage by stage - derived from runs/state.json,
         # runs/broker.json and the worker logs, so it survives a restart. The
         # detail stays in the two cards above: this list says which stage they
         # belong to.
-        phase = lap.where().get("phase", "")
+        phase = w.get("phase", "")
+        offers_retry = bool(stages.retryable(st, phase, b))
         busy_html += stages.render(st, phase, b)
         # the live map of the workflow (nodes+edges dumped from the real
         # Workflow object), above every card of a running lap
@@ -713,6 +908,19 @@ def now_body() -> str:
         busy_html += flowmap.render(st, phase, MASCOT)
     else:
         busy_html += stages.render(st, "idle", b)
+
+    def verdict(card_says: bool) -> bool:
+        """The card's own verdict, overruled by a Retry sitting above it.
+
+        The escape hatch (End / Restart) is deliberately NOT counted here. It is
+        on every mid-lap page, so counting it would mean nothing ever refreshes -
+        and it is the one pair of controls that loses nothing when a click is
+        eaten: both are two-step, the first POST only draws a confirm page (which
+        already never refreshes), so the cost of a dropped click is one more
+        click. Everything ASKS protects - a typed direction, an Approve on a
+        suspended run - is single-shot and gone for good.
+        """
+        return LIVE if (card_says is LIVE and not offers_retry) else ASKS
 
     if not st.get("run_id"):
         chip = ""
@@ -728,7 +936,9 @@ def now_body() -> str:
 {chip}<form method="post" action="/ui/run"><div class="foot">
 <input type="text" name="hint" placeholder='an idea — or leave it empty'>
 <button class="go">Start a lap ▸</button></div></form>
-<div class="h0s" style="margin-top:14px">you get three touches: this idea · picking a direction · approving the thumbnail</div></div>"""
+<div class="h0s" style="margin-top:14px">you get three touches: this idea · picking a direction · approving the thumbnail</div></div>""", verdict(ASKS)
+        # ASKS: "the state is safe" - nothing is running, so a refresh could not
+        # bring news even if it wanted to. All it can do is empty the idea box.
 
     if st.get("published"):
         v = st["published"]
@@ -774,10 +984,12 @@ def now_body() -> str:
 <input type="text" name="hint" value="{suggest_topic()}" style="min-width:280px">
 <button class="go">Start next lap ▸</button><br>
 <span style="font-size:12.5px;color:var(--sub)">pre-filled from <b>user:prefs</b> — the studio opens with your taste</span>
-</div></form></div></div></div>"""
+</div></form></div></div></div>""", verdict(ASKS)
+        # ASKS: the lap is DONE. Nothing will ever change on this page again,
+        # and it carries a prefilled hint box the human is invited to edit.
 
-    # thumb approval?
-    pend_thumb = drive.run(drive.pending(f"{st['run_id']}_thumb"))
+    # thumb approval? (already read, above, in the one trip to the store)
+    pend_thumb = pend.get(f"{rid}_thumb") or []
     if pend_thumb and not any(a["kind"] == "thumb" for a in st["lineage"]["approvals"]):
         tb = st.get("thumb") or {}
         thumb = tb.get("ref", "")
@@ -803,7 +1015,12 @@ still landing (~20-30s). This page refreshes itself; Approve appears when there
 is something to look at.</div>
 {brief}{sticker}
 <div class="h0s mono" style="margin-top:10px;color:var(--sub)">{html.escape(thumb) or "no ref written yet"}</div>
-</div>"""
+</div>""", verdict(LIVE)
+            # LIVE, and this is the case that EARNS auto-refresh. The guarded
+            # card deliberately offers no Approve and no Regenerate, so there is
+            # no click here to destroy - and the picture lands on its own, so
+            # Approve has to appear on its own too. Take the refresh away here
+            # and the promise two lines up becomes a lie.
 
         return busy_html + f"""
 <div class="card"><div class="h0">Ship this thumbnail?</div>
@@ -815,7 +1032,23 @@ is something to look at.</div>
 <form method="post" action="/ui/approve" style="margin-left:auto"><div style="text-align:right">
 <button class="go">Approve ▸</button><br>
 <span style="font-size:12.5px;color:var(--sub)">approve, and the lap finishes itself</span></div></form>
-</div></div>"""
+</div></div>""", verdict(ASKS)
+        # ASKS - and this is the state that is genuinely BOTH, so it gets an
+        # argument rather than a rule. Renders really are still cooking behind
+        # this card. It still must not refresh, for four reasons:
+        #   1. the thing being judged - the picture - is FINISHED. It does not
+        #      change while you look at it, so a refresh cannot improve your
+        #      answer.
+        #   2. the render progress is not ON this card. Refreshing shows you
+        #      nothing new here; the stage list above is what moves, and it is
+        #      the Update link's job to fetch it when you want it.
+        #   3. Approve does not depend on the renders. finish waits for them
+        #      afterwards either way, so there is nothing to wait for first.
+        #   4. this is the most expensive click in the lab to lose. The run is
+        #      SUSPENDED on it; drop it and the human sits looking at a card
+        #      that is doing nothing, pressing a button that does nothing.
+        # Something changing somewhere is not a reason to move the page under a
+        # cursor that is aimed at a button.
 
     if st.get("shots"):
         done = sum(1 for s in st["shots"] if s.get("status") in ("done", "fallback"))
@@ -825,7 +1058,12 @@ is something to look at.</div>
 <button class="ghost">Finish ▸</button></div></form>"""
         return busy_html + f"""
 <div class="card"><div class="h0">Rendering {done}/{len(st['shots'])}.</div>
-<div class="h0s">every wait is a row — the worker delivers each one by id, then this lap finishes itself{" · three Veo shots, a minute or three each" if config.REAL_VIDEO and not broker.degraded() else ""}</div>{fallback}</div>"""
+<div class="h0s">every wait is a row — the worker delivers each one by id, then this lap finishes itself{" · three Veo shots, a minute or three each" if config.REAL_VIDEO and not broker.degraded() else ""}</div>{fallback}</div>""", verdict(LIVE if b else ASKS)
+        # LIVE while a worker is running: the count climbs by itself and the
+        # card is empty of controls (`fallback` is "" exactly when b is set).
+        # The moment the worker dies the Finish button appears - and then the
+        # page is both useless to refresh (nothing is moving) and dangerous to
+        # refresh (that button is the only way on). Same test, both answers.
 
     if st.get("script"):
         ev_chips = ""
@@ -840,9 +1078,12 @@ is something to look at.</div>
         return busy_html + f"""
 <div class="card"><div class="h0">Direction cleared the policy gate.</div>
 <div class="h0s">“{st['script']['title']}” — scripted quietly; renders start themselves</div>
-<div class="made"><span class="k">EVIDENCE</span>{ev_chips or '<span class="mchip">none</span>'}</div>{fallback}</div>"""
+<div class="made"><span class="k">EVIDENCE</span>{ev_chips or '<span class="mchip">none</span>'}</div>{fallback}</div>""", verdict(LIVE if b else ASKS)
+        # same shape as Rendering: "renders start themselves" while a worker is
+        # up and the card is bare; when it is not, the Render button is the
+        # whole point of the card and nothing is moving anyway.
 
-    w = lap.where()
+    # w was computed once, at the top, from the one trip to the session store
     if w["phase"] == "form":
         pay = w.get("payload") or {}
         cands = pay.get("candidates") or []
@@ -862,7 +1103,11 @@ is something to look at.</div>
 <label class="drow"><input type="radio" name="pick" value="custom">
 <div><b>write my own</b><input type="text" name="custom" placeholder="your direction, one line"></div></label>
 <div class="foot"><span style="font-size:12.5px;color:var(--sub)">one function_response — then the policy gate runs by itself</span>
-<button class="go">Continue ▸</button></div></form></div>"""
+<button class="go">Continue ▸</button></div></form></div>""", verdict(ASKS)
+        # ASKS, and this was the worst offender. "the run is SUSPENDED on this
+        # form" - literally nothing is running, so the refresh had no news to
+        # bring; all it did was reset the radio to option 1 and empty the
+        # custom-direction box every 4s while the human read three candidates.
 
     if w["phase"] == "blocked":
         hits = ", ".join(w.get("hits") or [])
@@ -872,9 +1117,16 @@ is something to look at.</div>
 Nothing was scripted, rendered or paid.</div>
 <form method="post" action="/ui/run"><div class="foot">
 <input type="text" name="hint" placeholder="a different idea">
-<button class="go">Start over ▸</button></div></form></div>"""
+<button class="go">Start over ▸</button></div></form></div>""", verdict(ASKS)
+        # ASKS: the gate refused before anything was scripted, rendered or paid,
+        # so nothing is running. The card is one text box and one button.
 
-    return busy_html + '<div class="card"><div class="h0">Working…</div><div class="h0s">research is fanning out</div></div>'
+    return busy_html + ('<div class="card"><div class="h0">Working…</div>'
+                        '<div class="h0s">research is fanning out</div></div>'), verdict(LIVE if b else ASKS)
+    # LIVE while the fan-out worker is up: the card has no controls at all and
+    # the next thing to happen is the form appearing by itself. If the worker is
+    # gone, nothing is fanning out and the only things to press are the stage
+    # list and the escape hatch.
 
 
 # ── the way out ───────────────────────────────────────────────────────────
@@ -1001,8 +1253,11 @@ def confirm_body(action: str, stage: str = "") -> str:
 
 @app.get("/", response_class=HTMLResponse)
 def now_page(request: Request):
-    return page("now", now_body() + escape_hatch(),
-                refresh="static" not in request.query_params)
+    # now_body() decides, from the real state of the lap, whether this page is
+    # allowed to navigate on its own; ?static still forces it off by hand.
+    body, live = now_body()
+    return page("now", body + escape_hatch(),
+                refresh=live and "static" not in request.query_params)
 
 
 @app.get("/channel", response_class=HTMLResponse)
@@ -1044,8 +1299,12 @@ def state_page(request: Request):
     st = state.load()
     rid = st.get("run_id", "")
     open_calls = []
-    for suffix in ("_wf", "_desk", "_thumb"):
-        for cid, name, resp in (drive.run(drive.pending(f"{rid}{suffix}")) if rid else []):
+    # three sessions, ONE trip to the store (was three whole asyncio.run()s,
+    # i.e. three DatabaseSessionServices built and torn down to answer one row)
+    suffixes = ("_wf", "_desk", "_thumb")
+    pend = pending_for(*(f"{rid}{s}" for s in suffixes)) if rid else {}
+    for suffix in suffixes:
+        for cid, name, resp in pend.get(f"{rid}{suffix}", []):
             open_calls.append(f"{name} · id {str(cid)[:8]}… · open")
     sess = "<br>".join(open_calls) or "no open calls"
     prefs = st.get("prefs") or {}
@@ -1061,6 +1320,7 @@ def state_page(request: Request):
     from agent import memory as _memory
     bank_name = _memory.engine_name()
     bank_log = config.RUNS / "bank_run.log"
+    asks = False                       # set below if a control lands on the page
     if busy() == "bank":
         mem_html = ('<div class="note"><span class="dot"></span> connecting — creating an '
                     'Agent Engine to host the bank (~30s, one-time)…</div>')
@@ -1076,6 +1336,7 @@ def state_page(request: Request):
                        f'margin:6px 0 4px;color:#5C5346">{tail}</pre>' if tail else "")
                     + mem_html)
     else:
+        asks = True                    # the Connect button is on the page
         mem_html = ('<form method="post" action="/ui/bank"><div style="text-align:left">'
                     '<button class="go">Connect the bank ▸</button><br>'
                     '<span style="font-size:12px;color:var(--sub)">python -m agent.bank, as a button '
@@ -1087,7 +1348,13 @@ def state_page(request: Request):
 <div class="row"><img src="/static/art/gem-4.png"><div class="rn"><b>World</b><span>BigQuery</span></div><div class="rv mono">{world}</div><span class="life">outlives every run</span></div>
 <div class="row"><img src="/static/art/gem-5.png"><div class="rn"><b>Memory</b><span>Memory Bank</span></div><div class="rv">{mem_html}</div><span class="life">the channel's</span></div>
 <div class="kill"><b>Kill anything.</b> These five survive.</div>"""
-    return page("state", f'<div class="card" style="padding-top:20px">{rows}</div>', refresh="static" not in request.query_params)
+    # Same rule as the Now page: this page may navigate on its own only while a
+    # worker is moving it AND it is not holding a button. Connect the bank is
+    # one click that spends 30 seconds creating an Agent Engine - losing it to a
+    # navigation is exactly the complaint.
+    live = bool(busy()) and not asks
+    return page("state", f'<div class="card" style="padding-top:20px">{rows}</div>',
+                refresh=live and "static" not in request.query_params)
 
 
 # the three banners scripts/graph.sh prints, in order
@@ -1163,8 +1430,12 @@ def world_page(request: Request):
             f'<div class="flow" style="margin-top:20px">{graph_steps(log)}</div>'
             f'{head}</div>'
             f'<div class="card" style="margin-top:18px">{graph_readings()}{tail}</div>')
-    # ?static freezes the 4s auto-refresh - handy while reading a long log
-    return page("world", body, refresh="static" not in request.query_params)
+    # Same rule as the Now page. While the script runs there is a log tailing
+    # itself and no button on the page, so it refreshes. The moment it stops,
+    # `head` becomes the one button that starts a ~40s job - and the page holds
+    # still so that click cannot be eaten. ?static still freezes it by hand,
+    # which is now only useful on the LIVE half.
+    return page("world", body, refresh=running and "static" not in request.query_params)
 
 
 # ── buttons = the same CLIs the student runs ──
