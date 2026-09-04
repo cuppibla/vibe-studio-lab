@@ -18,7 +18,9 @@ RUN degrades to that prebaked clock (see _degrade) and says so loudly - in the
 worker log and on the page - because a learner must never mistake a stand-in
 for Veo output. The degraded flag lives in broker.json, so it survives the
 process boundary and a resumed run picks it back up instead of re-dialling a
-model that is not answering.
+model that is not answering. There is exactly ONE door back out of that flag -
+undegrade(), written next to _degrade() so the pair reads as one transition -
+and Studio's per-stage Retry is what opens it.
 
 Pull-through advancement: state only moves when poll() is called - no daemon.
 """
@@ -121,6 +123,101 @@ def _degrade(d: dict, reason: str) -> None:
             j["real"] = False
             j["submitted_at"] = time.time()          # the prebaked clock starts now
             j["note"] = f"degraded to prebaked - {reason}"
+
+
+def _is_standin(j: dict) -> bool:
+    """A job the failover owns. Two doors lead here and both leave `real` False:
+    _degrade() converting a queued Veo job mid-flight ("degraded to prebaked
+    - ..."), and submit() minting a prebaked one because the run was already
+    degraded ("prebaked stand-in - ..."). A job that is still `real` is Veo's,
+    whatever its status, and is none of the un-degrade's business."""
+    return not j.get("real")
+
+
+def undegrade(why: str = "retry: dialling Veo again") -> dict:
+    """Come back OFF the prebaked clock - the one door back through _degrade().
+
+    _degrade() is one-way on purpose: while Veo is refusing, re-dialling it
+    every poll is how a lab hangs. But "Veo is refusing" is not always a
+    verdict - a 429 RESOURCE_EXHAUSTED is a quota WINDOW, and the window
+    reopens. Restart used to be the only way to try again, and it threw away
+    the research, the direction and the script to do it. So this is the
+    inverse transition, written next to the one it inverts:
+
+      · d["degraded"] is removed          -> degraded() is None, deadline_s()
+                                             goes back to config.DEADLINE_S
+                                             (Veo's window, not the prebaked
+                                             one), and submit() stops taking
+                                             its `if d.get("degraded")`
+                                             short-circuit, so the next shot
+                                             is dialled for real.
+      · every stand-in job is RETIRED     -> moved out of d["jobs"] and into
+                                             d["retired"], stamped
+                                             standin=True and status="retired".
+                                             NOT deleted (this lab is about
+                                             durable state - the failover
+                                             stays on the record) and NOT
+                                             flipped back to real=True, which
+                                             would be a lie: a job cannot
+                                             become real without a live Veo
+                                             operation name, and only submit()
+                                             can get one. Retiring is what
+                                             "return them to real work" can
+                                             honestly mean here - poll() stops
+                                             ticking them on the prebaked
+                                             clock, so they can never resolve
+                                             into a stand-in url that the page
+                                             would then show with no failover
+                                             banner over it. The caller re-runs
+                                             `python -m agent.render`, which
+                                             submits those same shots again -
+                                             and because the retired ones left
+                                             d["jobs"], submit()'s
+                                             `idx = len(d["jobs"])` starts at 0
+                                             again, so the prebaked clock's own
+                                             teaching cues (idx 1 fails once ->
+                                             the medic, idx 2 straggles -> the
+                                             deadline) still land if Veo
+                                             refuses a second time.
+      · real jobs are LEFT ALONE          -> a shot Veo actually delivered is
+                                             paid for and downloaded; nobody
+                                             buys it twice.
+
+    Idempotent and safe on a resumed run, exactly like _degrade(): on a run
+    that is not degraded it changes nothing, writes nothing, and says so.
+    Returns a summary the page can print.
+    """
+    d = _load()
+    if not d.get("degraded"):
+        return {"undegraded": False, "was": None, "retired": [],
+                "kept": [j["id"] for j in d.get("jobs", [])],
+                "note": "not degraded - nothing to undo"}
+    was = d.pop("degraded")
+    jobs = d.get("jobs") or []
+    retired = [j for j in jobs if _is_standin(j)]
+    kept = [j for j in jobs if not _is_standin(j)]
+    stamp = time.time()
+    for j in retired:
+        j["standin"] = True              # it never stops having been one
+        j["status"] = "retired"
+        j["retired_at"] = stamp
+        j["retired_by"] = why
+    d["retired"] = (d.get("retired") or []) + retired
+    d["jobs"] = kept
+    d["undegraded"] = {
+        "at": stamp, "why": why, "was": was,
+        "retired": [j["id"] for j in retired],
+        "times": int((d.get("undegraded") or {}).get("times", 0)) + 1,
+    }
+    _save(d)
+    print(f"  [farm] UN-DEGRADED - {why}")
+    print(f"  [farm] the failover is cleared (it was: {was.get('reason', '')}) - "
+          f"{len(retired)} prebaked stand-in(s) retired, "
+          f"{len(kept)} real job(s) kept; the next submit dials Veo")
+    return {"undegraded": True, "was": was,
+            "retired": [j["id"] for j in retired],
+            "kept": [j["id"] for j in kept],
+            "note": f"cleared the failover and retired {len(retired)} stand-in(s)"}
 
 
 def _submit_real(job: dict, prompt: str) -> str | None:

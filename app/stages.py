@@ -25,8 +25,24 @@ from __future__ import annotations
 
 import html
 import json
+import os
+import shutil
 
 from agent import config as _config
+
+
+def _have_ffmpeg() -> bool:
+    """ffmpeg on PATH. Cheap (a PATH scan), and read fresh every render so the
+    row goes green the moment the learner installs it - no server restart."""
+    return bool(shutil.which("ffmpeg"))
+
+
+def _room_configured() -> bool:
+    """Did Setup point .env at a room? Read at render time for the same reason
+    agent/premiere.py reads it at call time: a .env filled during Setup must be
+    honored without restarting anything."""
+    return bool(os.environ.get("VIBETUBE_URL", "").strip()
+                and os.environ.get("VIBETUBE_EVENT", "").strip())
 
 # ── the vocabulary ───────────────────────────────────────────────────────────
 # key · label · the one-line gloss, in the codelab's voice
@@ -51,6 +67,17 @@ VERB_STAGE = {
     "finish": "join",
     "auto": None,          # direction / ship / rethumb - decided by position
 }
+
+# The same table read backwards: the stage a Retry re-runs, and the verb it
+# runs to do it. Derived from VERB_STAGE rather than written out again, so the
+# two can never drift. `auto` maps to None (it drives three different buttons,
+# resolved by position) and therefore contributes no stage - which is the right
+# answer: none of the rows it touches can be re-run on their own.
+STAGE_VERB = {stage: verb for verb, stage in VERB_STAGE.items() if stage}
+
+# The label for a key, for anything that has to NAME a stage back to the user
+# (the confirm page, the receipt). Same list, one source.
+STAGE_LABEL = {key: label for key, label, _ in STAGES}
 
 PASS, NOW, FAIL, RETRY, DEGRADED, BLOCKED, SKIP, IDLE, STALL, WAIT = (
     "pass", "now", "fail", "retry", "degraded", "blocked", "skip", "idle",
@@ -181,6 +208,10 @@ def stage_states(st: dict, phase: str, busy_verb: str | None,
     ev_failed = bool(ev) and not all((ev.get("checks") or {}).values())
     delivered = [s for s in shots if s.get("status") in ("done", "fallback")]
     all_delivered = bool(shots) and len(delivered) == len(shots)
+    # A shot the farm gave up on: world/broker.py sets status="failed" on every
+    # failure path and leaves no url behind. The reason it wrote is the only
+    # honest thing this list can say about a shot that never rendered.
+    failed = [str(s.get("reason") or "") for s in shots if s.get("status") == "failed"]
 
     done = {
         "research":  bool(st.get("brief") or st.get("candidates")),
@@ -245,9 +276,16 @@ def stage_states(st: dict, phase: str, busy_verb: str | None,
                     # a retry that recovered is part of the story, not a state
                     status = PASS
                     note = f"{n}/{tot} shots delivered" + (f" · {why}" if why else "")
+                elif failed and st.get("published"):
+                    # the lap FINISHED short. The farm is not still working and
+                    # this row is not stalled - it is done, and one shot is gone.
+                    status = FAIL
+                    note = (f"{n}/{tot} shots delivered · {len(failed)} failed"
+                            + (f" — {failed[0]}" if failed[0] else ""))
                 else:
                     status = NOW if busy_verb in ("render", "finish") else STALL
-                    note = f"{n}/{tot} delivered" + (f" · {why}" if why else "")
+                    note = (f"{n}/{tot} delivered" + (f" · {why}" if why else "")
+                            + (f" · {len(failed)} failed" if failed else ""))
             elif done["script"]:
                 status = NOW if busy_verb == "render" else IDLE
                 note = "submitting the shots in ONE turn"
@@ -267,9 +305,18 @@ def stage_states(st: dict, phase: str, busy_verb: str | None,
                 extra.append(f"{retakes} retake{'s' if retakes > 1 else ''} (qc FAIL → medic)")
             if late:
                 extra.append(f"{late} deadline stand-in{'s' if late > 1 else ''}")
+            if failed:
+                extra.append(f"{len(failed)} shot{'s' if len(failed) > 1 else ''} failed")
             if done["join"]:
                 status = PASS
                 note = "renders complete + human approved" + (" · " + ", ".join(extra) if extra else "")
+            elif approved and st.get("published"):
+                # The join DID complete - it just joined fewer shots than it
+                # asked for. Without this the row sits on "2/3 in" forever
+                # behind a lap that finished minutes ago: a silent gap.
+                status = PASS
+                note = (f"finished with {len(delivered)} of {len(shots)} shots"
+                        + (" · " + ", ".join(extra) if extra else ""))
             elif shots:
                 status = NOW if busy_verb == "finish" else (
                     STALL if delivered else IDLE)
@@ -296,6 +343,17 @@ def stage_states(st: dict, phase: str, busy_verb: str | None,
                 status, note = SKIP, "no room configured — self-paced, nothing depends on it"
             elif room.get("skipped"):
                 status, note = FAIL, "premiere failed — " + str(room["skipped"])
+            elif not _room_configured():
+                status, note = SKIP, "no room configured — self-paced, nothing depends on it"
+            elif not _have_ffmpeg():
+                # Said HERE, at the top of the lap, instead of on the wall card
+                # forty minutes later. The premiere is the one step that cannot
+                # degrade - no ffmpeg, no mp4, no room - so the row says it will
+                # be skipped before the learner spends the lap finding out.
+                status = DEGRADED
+                note = ("ffmpeg is not installed — the premiere cut cannot be "
+                        "packaged and the room will be skipped (the lap still "
+                        "publishes) · fix: ./setup_codelab.sh")
             elif st.get("published"):
                 status, note = NOW, "packaging the premiere cut"
 
@@ -314,6 +372,66 @@ def stage_states(st: dict, phase: str, busy_verb: str | None,
         rows.append({"key": key, "label": label, "sub": sub,
                      "status": status, "note": note})
     return rows
+
+
+# ── which rows may be re-run on their own ───────────────────────────────────
+# A stage is worth re-running when it DIED (FAIL), when it is sitting there
+# with no worker behind it (STALL), or when it fell back to the prebaked clock
+# (DEGRADED). Deliberately not: PASS and NOW (fine, or already moving), RETRY
+# (a retry is in flight - a second one would race it), WAIT (the human IS the
+# next step; that row's own form is the retry), IDLE, SKIP and BLOCKED (nothing
+# has happened yet, or a verdict was reached and re-running changes nothing).
+RERUNNABLE = (FAIL, STALL, DEGRADED)
+
+
+def retry_verb(row: dict) -> str | None:
+    """The worker `Retry` re-runs for this row - or None if this row offers no
+    Retry at all.
+
+    Two gates, both read off things that already exist: the row has to be in a
+    re-runnable state, and STAGE_VERB (i.e. VERB_STAGE backwards) has to name a
+    verb that drives it. Rows with no verb of their own are never offered the
+    button, because there is nothing to re-run in isolation - see RETRY.md for
+    the list and the reason for each.
+
+    Note it is always the row's OWN verb, never whichever verb happened to die.
+    `_blame` can pin a dead worker on a row further down the lap, and a button
+    that says "Retry" on the render row while quietly running agent.finish
+    would be exactly the sort of thing this list exists to stop.
+    """
+    if row.get("status") not in RERUNNABLE:
+        return None
+    return STAGE_VERB.get(row.get("key"))
+
+
+def retryable(st: dict, phase: str, busy_verb: str | None,
+              pend_thumb: bool = False) -> dict:
+    """{stage key: verb} for every row offering Retry right now.
+
+    The page draws its buttons from this and the POST handler validates against
+    it, so a stale form cannot make the server run something the row was not
+    offering by the time it arrived.
+    """
+    out = {}
+    for r in stage_states(st, phase, busy_verb, pend_thumb):
+        v = retry_verb(r)
+        if v:
+            out[r["key"]] = v
+    return out
+
+
+def retry_form(key: str, label: str, verb: str) -> str:
+    """One Retry button, on one row. Plain form -> POST -> 303, the same idiom
+    as every other button in this app, and no JavaScript anywhere.
+
+    The button NAMES the stage and the command, so there is never a question
+    about which row it belongs to or what it is about to run. The POST only
+    reaches a confirm page; nothing is re-run on this click.
+    """
+    return (f'<form class="stf" method="post" action="/ui/retry">'
+            f'<input type="hidden" name="stage" value="{html.escape(key, quote=True)}">'
+            f'<button class="stbtn">&#8635; Retry &#8220;{html.escape(label)}&#8221; '
+            f'&mdash; python -m agent.{html.escape(verb)}</button></form>')
 
 
 # ── the markup ───────────────────────────────────────────────────────────────
@@ -345,11 +463,15 @@ def render(st: dict, phase: str, busy_verb: str | None,
         badge = (f'<span class="stw">{html.escape(word)}</span>' if word else "")
         note = (f'<div class="stn mono">{html.escape(r["note"])}</div>'
                 if r["note"] else "")
+        # the one control that lives ON a row: re-run just this stage. Only the
+        # rows retry_verb() vouches for get one.
+        v = retry_verb(r)
+        retry = retry_form(r["key"], r["label"], v) if v else ""
         out.append(
             f'<div class="stg {r["status"]}">'
             f'<span class="stm">{MARK[r["status"]]}</span>'
             f'<div class="stb"><div class="stl">{html.escape(r["label"])}{badge}</div>'
-            f'<div class="sts">{html.escape(r["sub"])}</div>{note}</div></div>')
+            f'<div class="sts">{html.escape(r["sub"])}</div>{note}{retry}</div></div>')
 
     room = st.get("room") or {}
     link = ""

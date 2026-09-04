@@ -78,9 +78,11 @@ def try_finish() -> dict | None:
         print("renders complete — waiting on HUMAN (thumbnail). "
               "Doorbell: python -m agent.approve  (or the Studio button)")
         return None
-    print("── join complete (renders N/N + human) -> post-production ──")
-    st["lineage"]["shots"] = [{"prompt": s["prompt"], "url": s["url"],
-                               "status": s["status"]} for s in st["shots"]]
+    shots = st.get("shots") or []
+    landed = [s for s in shots if s.get("url")]
+    print(f"── join complete (renders {len(landed)}/{len(shots)} + human) "
+          f"-> post-production ──")
+    st["lineage"]["shots"] = [_lineage_shot(s) for s in shots]
     state.save(st)
     result = drive.run(post.run_post(st["run_id"]))
     print(f"PUBLISHED: {result}")
@@ -98,18 +100,54 @@ def try_finish() -> dict | None:
     return result
 
 
+def _lineage_shot(s: dict) -> dict:
+    """One shot, as the AUDIT TRAIL records it.
+
+    A shot only has a `url` once the farm actually delivered something: the two
+    success paths in world/broker.py write one, and every failure path there
+    sets status="failed" (usually with a `reason`) and leaves `url` absent.
+
+    So `url` is optional, and its absence is not a hole to paper over with an
+    empty string - an empty string in a url field reads like a url that did not
+    render, which is a different and untrue story. A shot that never rendered is
+    recorded as failed WITH the reason the farm gave, and with no url key at
+    all. The lineage is the lab's evidence; it says what happened.
+
+    The delivered shape is byte-for-byte what it always was, so a lap where
+    every shot lands produces exactly the lineage it produced before.
+    """
+    if s.get("url"):
+        row = {"prompt": s.get("prompt", ""), "url": s["url"],
+               "status": s.get("status", "done")}
+    else:
+        row = {"prompt": s.get("prompt", ""),
+               "status": s.get("status") or "failed",
+               "reason": s.get("reason") or "no result was ever delivered"}
+    if s.get("retake_of"):
+        row["retake_of"] = s["retake_of"]
+    return row
+
+
+def shot_tally(st: dict) -> tuple[int, int]:
+    """(delivered, total) for the current lap - what the join actually joined."""
+    shots = st.get("shots") or []
+    return sum(1 for s in shots if s.get("url")), len(shots)
+
+
 def _record_url(shot_prompt, url, status):
     st = state.load()
-    for s in st["shots"]:
-        if s["prompt"] == shot_prompt or s.get("retake_of") == shot_prompt:
+    for s in st.get("shots") or []:
+        if s.get("prompt") == shot_prompt or s.get("retake_of") == shot_prompt:
             s["url"], s["status"] = url, status
+            s.pop("reason", None)      # it landed: an earlier failure's reason
+            s.pop("failed_before", None)   # must not follow it into the lineage
     state.save(st)
 
 
 def _record_retake(original_prompt, new_prompt):
     st = state.load()
-    for s in st["shots"]:
-        if s["prompt"] == original_prompt:
+    for s in st.get("shots") or []:
+        if s.get("prompt") == original_prompt:
             s["prompt"] = new_prompt
             s["retake_of"] = original_prompt
             s["status"] = "retake_submitted"
