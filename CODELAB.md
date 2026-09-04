@@ -1359,9 +1359,9 @@ PUBLISHED: {'published': True, 'video_id': 'v_…', 'url': '/watch/v_…'}
 ```
 
 Dev-UI deep dive — the whole lap as raw events (browse only, nothing to
-type): port 8000 Preview → add `&userId=creator` to the URL and reload (adk
-web files YOUR chats under user `user`; the lap's sessions belong to
-`creator`) → **NEW SESSION ▾** → newest `run_…_wf` session. Top to bottom:
+type): port 8000 Preview → change `userId=user` to `userId=creator` in the
+URL and reload (adk web files YOUR chats under user `user`; the lap's
+sessions belong to `creator`) → **NEW SESSION ▾** → newest `run_…_wf` session. Top to bottom:
 the three candidates landing in state, the `adk_request_input` carrying
 the pick schema, your pick coming back as a `function_response`,
 `user:prefs` and `direction` landing in state, the policy route chip, and
@@ -1377,7 +1377,8 @@ turn, results delivered out of order, the medic's retake, the final map.
 <aside class="negative">
 <b>Two gotchas, both deliberate.</b> ① adk web files NEW chats under user
 <code>user</code>, while the lap's sessions live under <code>creator</code>
-— that's why browsing them needs <code>&userId=creator</code> in the URL.
+— that's why browsing them needs <code>userId=creator</code> in the URL,
+in place of the <code>userId=user</code> already there.
 ② The renders you just watched never lived in the graph: a resumed graph
 re-runs its nodes, and an external submit inside a node would submit twice.
 People-pauses are safe to re-ask; world side effects are not.
@@ -1555,11 +1556,20 @@ typing, five clicks:
 
 1. **Web Preview → Change port → 8000** (adk web is still running in
    tab 2 — if you closed the preview tab, this reopens it).
-2. Click the browser's address bar, go to the very END of the URL, add
-   `&userId=creator`, press Enter. (Your own chats live under user `user`;
-   the app's laps live under user `creator` — this switches the view.)
+2. Click the browser's address bar and find `userId=user` in the URL.
+   Change that one word: `user` → `creator`, so it reads `userId=creator`.
+   Press Enter. (Your own chats live under user `user`; the app's laps live
+   under user `creator` — this switches the view.)
 
-![Step 2 — the only edit is at the end of the URL](codelab-img/s3-userid-bar.png)
+<aside class="negative">
+<b>Change it, do not append it.</b> The URL already carries
+<code>userId=user</code>. Adding a second <code>&amp;userId=creator</code> on
+the end leaves both, and adk web joins them into one id &mdash; you get
+<code>No sessions found for user 'user,creator'</code>. There must be exactly
+one <code>userId</code> in the URL.
+</aside>
+
+![Step 2 — one word changes: userId=user becomes userId=creator](codelab-img/s3-userid-bar.png)
 3. Click the **NEW SESSION ▾** picker at the top.
 4. The session list opens — these are the app's laps. Click the newest
    `run_…_wf` session (largest number):
@@ -2043,8 +2053,8 @@ every lap.)
 typing, five clicks:
 
 1. **Web Preview → Change port → 8000**.
-2. If the URL no longer ends with `&userId=creator`, add it back at the very
-   end and press Enter.
+2. If the URL says `userId=user`, change that word to `creator` so it reads
+   `userId=creator`, and press Enter. (Exactly one `userId`, never two.)
 3. Click the **NEW SESSION ▾** picker.
 4. Click the newest `run_…_wf` session — this is the lap you just ran.
 5. Scroll the event list to the very TOP and find the small
