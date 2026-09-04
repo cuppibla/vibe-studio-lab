@@ -811,6 +811,22 @@ like best) and press **Submit**:
 
 ![The form, answered — 1 in the pick field, then Submit](codelab-img/st2-form-typed.png)
 
+<aside class="positive">
+<b>None of the three? Write your own.</b> The <code>pick</code> field takes
+<code>custom</code> as well as <code>1</code>, <code>2</code> or
+<code>3</code> &mdash; the schema is built at yield time and always carries
+that extra option. Type <code>custom</code> into <b>pick</b>, then put your
+own line in the <b>custom</b> field:
+<pre><code>pick:   custom
+custom: Robot reviews a competitor's vacuum</code></pre>
+<code>persist_direction</code> reads <code>custom</code> only when
+<code>pick</code> is <code>custom</code>, and your line becomes the direction
+&mdash; title, hook and all. The <code>custom</code> field is ignored entirely
+for a numbered pick, so there is no harm leaving it blank. One rule either
+way: <b><code>pick</code> must not be empty.</b> It is the field the run
+resumes on.
+</aside>
+
 The run continues: `persist_direction`
 resolves your pick against the `candidates` in state (nobody passed them
 in — the node's parameter binds from state) and writes `direction`. (On
