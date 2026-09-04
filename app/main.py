@@ -408,9 +408,30 @@ def farm_note() -> str:
 <div class="h0s mono" style="margin-top:9px">{html.escape(dg.get("reason", ""))}</div></div>"""
 
 
+def unresumable(lines: list[str]) -> bool:
+    """Did this worker die because the SESSION can no longer be rehydrated?
+
+    ADK re-validates every stored interrupt response against its response
+    schema on every resume. A stored answer that no longer fits (the classic
+    is a form submitted with nothing selected, saved as a null pick against a
+    schema that made pick required) fails there, the node never unblocks, and
+    what the learner actually SEES is a replay-divergence timeout from a
+    completely innocent branch. Both halves of that chain are in the log, so
+    read the log rather than guessing.
+    """
+    blob = " ".join(lines)
+    return ("Validation failed for interrupt" in blob
+            or "Replay divergence detected" in blob)
+
+
 def failed_card() -> str:
     """The other half of the log: a worker that exited non-zero used to vanish
-    here and leave the page pending forever. Say it died, and show the tail."""
+    here and leave the page pending forever. Say it died, and show the tail.
+
+    And when the reason is an unresumable session, say THAT instead of making
+    a learner reverse-engineer a replay-divergence stack trace: name the real
+    cause, name the red herring, and point at the control that gets them out.
+    """
     if not LAST.exists():
         return ""
     try:
@@ -422,12 +443,25 @@ def failed_card() -> str:
     # the tail reader lives in app/stages.py - the stage list shows the last
     # line of it as that stage's reason, and one implementation cannot disagree
     # with itself about what the log said
-    tail = "<br>".join(html.escape(l) for l in stages.log_tail(f["verb"], 6))
+    lines = stages.log_tail(f["verb"], 6)
+    tail = "<br>".join(html.escape(l) for l in lines)
+    head = f'python -m agent.{f["verb"]} exited {f["code"]}.'
+    sub = ('nothing is running — the lap is exactly where the worker left it ·\n'
+           f'full output in <span class="mono">runs/{f["verb"]}_run.log</span>')
+    if unresumable(lines):
+        head = "This session can’t be resumed — a saved answer no longer fits its form."
+        sub = ('ADK re-reads every saved form answer each time it resumes, so one answer it '
+               'cannot parse stops this session for good — the same failure every time ·\n'
+               'the <span class="mono">Replay divergence</span> line below is fallout from '
+               'that, not the cause ·\n'
+               '<b>press Restart</b> (or run <span class="mono">python scripts/reset.py</span>) '
+               'to start a clean lap — your wall and published videos are untouched ·\n'
+               'the direction form now accepts a blank pick, so a fresh lap cannot get stuck '
+               'this way again')
     return f"""
 <div class="card" style="border-left:4px solid #C97B6B;margin-bottom:18px">
-<div class="h0" style="font-size:19px">python -m agent.{f["verb"]} exited {f["code"]}.</div>
-<div class="h0s">nothing is running — the lap is exactly where the worker left it ·
-full output in <span class="mono">runs/{f["verb"]}_run.log</span></div>
+<div class="h0" style="font-size:19px">{head}</div>
+<div class="h0s">{sub}</div>
 <div class="h0s mono" style="margin-top:11px;line-height:1.65">{tail}</div></div>"""
 
 

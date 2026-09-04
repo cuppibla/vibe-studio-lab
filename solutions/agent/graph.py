@@ -134,10 +134,21 @@ def persist_direction(node_input, candidates: list = [], constraints: str = ""):
     """Resolve the human's pick into THE direction - and remember the taste.
     `candidates` arrives from shared STATE (nobody passes it); `user:` keys
     are per-user and cross-session, so the NEXT lap's idea box can suggest
-    something like this one."""
-    pick = (node_input or {}).get("pick", "1")
-    custom = ((node_input or {}).get("custom") or "").strip()
-    if pick == "custom" and custom:
+    something like this one.
+
+    Belt and braces on the pick: schemas.direction_schema() no longer lets a
+    null poison the session at rehydration, and this normalises whatever DOES
+    arrive. `.get("pick", "1")` only defaulted when the key was ABSENT - a
+    present-but-null pick sailed through and `pick.isdigit()` blew up with
+    AttributeError. A human door must degrade to a sensible choice, never
+    raise: null / missing / "" / 7 / "banana" all resolve to candidate 1,
+    unless you typed a custom line, in which case we use that."""
+    ni = node_input if isinstance(node_input, dict) else {}
+    raw = ni.get("pick")
+    pick = str(raw).strip().lower() if raw is not None else ""
+    custom = (ni.get("custom") or "").strip()
+    # blank pick + a custom line you actually typed = you meant the custom line
+    if (pick == "custom" or not pick) and custom:
         chosen = {"title": custom, "angle": "(your own direction)", "evidence": [],
                   "hook": " ".join(custom.split()[:4])}
     elif candidates:
