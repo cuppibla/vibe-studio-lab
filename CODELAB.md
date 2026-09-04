@@ -622,7 +622,7 @@ Duration: 0:11:00
 - **What** — run the WHOLE channel as one prompt and feel exactly where it hurts; then grow the channel's real graph out of it, stage by stage, in the dev UI you already have open.
 - **Why** — "why a workflow" should be felt before it is told. And there is only ONE workflow in this lab — the channel's: every stage below is that graph, met in pieces. The small apps import the same node functions the finished channel runs.
 - **How** — same adk web tab, walk the app dropdown: `stage0_prompt` → `stage1_fanout` → `stage2_direction`. Use the SAME video idea as your thumbnail — it rides through every stage and becomes your published video.
-- **Surfaces** — 🔬 adk web · 💻 tab 2 (one Ctrl+C + restart). Tab 1 is not touched.
+- **Surfaces** — 🔬 adk web · 💻 tab 2 (already running since ⏳). Tab 1 is not touched.
 
 ### The production line you are about to grow
 
@@ -806,28 +806,7 @@ clothes** — same hinge, a schema riding it. What the solo prompt could be
 talked out of, the graph physically cannot skip: no `function_response`,
 no video.
 
-**Do not answer it yet.** The wait has a property worth proving first.
-
-👉💻 In **tab 2** (the terminal running adk web), press **Ctrl+C** — the
-whole dev UI dies mid-pause. Now start it again — the same block as
-always, typed fresh:
-
-```console
-cd ~/vibe-studio-lab
-source .venv/bin/activate
-adk web . --port 8000 --allow_origins "*" --reload_agents --session_service_uri "sqlite+aiosqlite:///$PWD/runs/sessions.db"
-```
-
-👉🔬 Reload the Preview, pick **`stage2_direction`**, reopen your session
-from the **NEW SESSION ▾** picker — and there is the form, still standing:
-
-![Killed and restarted — the suspended run is still waiting at the form](codelab-img/st2-survive.png)
-
-👀 A suspended graph is not a paused program — it is a ROW. The form
-survived a dead server exactly the way your thumbnail's wait did, because
-it is the same mechanism.
-
-👉🔬 Now answer it — type `1` into the **pick** field (or the number you
+👉🔬 Answer it — type `1` into the **pick** field (or the number you
 like best) and press **Submit**:
 
 ![The form, answered — 1 in the pick field, then Submit](codelab-img/st2-form-typed.png)
