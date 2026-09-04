@@ -202,10 +202,10 @@ only trace is a row in `sessions.db`. You are about to live this exact
 picture, and the job leaving is a real image model drawing a thumbnail
 for YOUR video idea.
 
-- **What** — ask a raw agent for a draft thumbnail, watch it stop without finishing while a real image model works elsewhere, kill the server to prove the wait survived — then look at the picture and give the word that ends the wait: your approval.
+- **What** — ask a raw agent for a draft thumbnail, watch it stop without finishing while a real image model works elsewhere — then look at the picture and give the word that ends the wait: your approval.
 - **Why** — the lab's load-bearing idea in one chapter: *pending is a value in the session log, not a thread in memory* — and every wait ends the same way: someone answers by id. Here that someone is you, and your answer is a SIGN-OFF. That is all "human in the loop" is: the work pauses until a person has judged it.
-- **How** — read the agent → boot adk web → describe your video idea → watch WAITING → kill and restart → look at the draft → approve it.
-- **Surfaces** — 💻 tab 2 (start adk web, one Ctrl+C) · 🔬 the port-8000 Preview · 💻 tab 1 once, to open the drafts folder.
+- **How** — read the agent → boot adk web → describe your video idea → watch WAITING → look at the draft → approve it.
+- **Surfaces** — 💻 tab 2 (start adk web) · 🔬 the port-8000 Preview · 📖 the Cloud Shell Editor once, to open the drafts folder.
 
 ### Who you are about to talk to
 
@@ -245,9 +245,8 @@ meet it alone, to see one wait clearly.
 2. start `adk web` in a **second** terminal tab — and leave that tab alone
 3. type one line: `Draft a thumbnail: <your video idea>`
 4. watch it stop at **WAITING** — and read why
-5. kill the dev UI and start it again — the wait is still there
-6. open the draft on disk and LOOK at it
-7. type `{"status": "approved"}` into the response box — your sign-off is
+5. open the draft on disk and LOOK at it
+6. type `{"status": "approved"}` into the response box — your sign-off is
    what ends the wait
 
 Everything you need is spelled out below; the explanations come after each
@@ -332,45 +331,15 @@ worker that is calling an image model — 20 to 30 seconds of genuine work —
 and then returned instantly. The agent has nothing left to do; the
 invocation ended honestly; your thumbnail is being drawn anyway.
 
-👀 One more thing to notice for later: under that call sits a small box,
-**"Enter your response…"** — that is where this wait will END, and what you
-type into it will be a *decision*. Leave it alone for one more minute:
-
-![The response box under the pending call — the wait ends here, later](codelab-img/s1-thumb-responsebox.png)
-
-### Kill it
-
-👉💻 In **tab 2** (the terminal running adk web), press **Ctrl+C** — the
-entire dev UI dies. Now start it again — same block as before:
-
-```console
-cd ~/vibe-studio-lab
-source .venv/bin/activate
-adk web . --port 8000 --allow_origins "*" --reload_agents --session_service_uri "sqlite+aiosqlite:///$PWD/runs/sessions.db"
-```
-
-👉🔬 Reload the Preview, pick **`vibestudio`** again, then reopen your
-session from the **NEW SESSION ▾** picker at the top — it is the one named
-after your message:
-
-![The picker after the restart — your session, still there](codelab-img/s1-session-picker.png)
-
-Everything is still there: the call, the pending receipt, your unanswered
-question. **The wait is a row in `runs/sessions.db`. It does not need any
-process to exist.**
-
 ### Look, then approve — you are the human in the loop
 
 👀 By now the studio has finished the drawing — it is a PNG on disk. But
 nothing tells the agent, and nothing should: **this draft does not move
 until a person has looked at it.** That person is you.
 
-👉💻 In **tab 1**, open the drafts folder — the Cloud Shell Editor previews
-images, so click the newest PNG:
-
-```console
-cloudshell edit ~/vibe-studio-lab/app/static/thumbs/drafts
-```
+👉📖 In the Cloud Shell **Editor** file tree on the left, open
+`vibe-studio-lab/app/static/thumbs/drafts` and click the newest PNG — the
+editor previews images, so it opens right there.
 
 *Our run typed "a tiny robot doing laundry at midnight":*
 
@@ -426,7 +395,7 @@ answers the wait.
 
 👀 The whole chapter as one picture: ① you ask · ② the pending receipt
 lands in `sessions.db` (the shelf) · ③ the turn ends with nothing running ·
-④ you kill the server — the row does not care · ⑤ any process delivers the
+④ the server dies — the row does not care · ⑤ any process delivers the
 result with the SAME call id, and the conversation continues.
 
 <aside class="positive">
@@ -586,7 +555,7 @@ code, not in a prompt.)
 
 *Our run's turn 1, then "make the light warmer, and change the words to:
 Sock Emergency". To see YOUR two: in **tab 1**, the drafts folder you
-opened earlier (`cloudshell edit ~/vibe-studio-lab/app/static/thumbs/drafts`)
+opened earlier (`vibe-studio-lab/app/static/thumbs/drafts`)
 now holds two `_titled.png` files — click each; the newer one is also the
 `user:thumb_draft` URL you just saw in the State tab.*
 
@@ -653,7 +622,7 @@ Duration: 0:11:00
 - **What** — run the WHOLE channel as one prompt and feel exactly where it hurts; then grow the channel's real graph out of it, stage by stage, in the dev UI you already have open.
 - **Why** — "why a workflow" should be felt before it is told. And there is only ONE workflow in this lab — the channel's: every stage below is that graph, met in pieces. The small apps import the same node functions the finished channel runs.
 - **How** — same adk web tab, walk the app dropdown: `stage0_prompt` → `stage1_fanout` → `stage2_direction`. Use the SAME video idea as your thumbnail — it rides through every stage and becomes your published video.
-- **Surfaces** — 🔬 adk web · 💻 tab 2 (one Ctrl+C + restart). Tab 1 is not touched.
+- **Surfaces** — 🔬 adk web · 💻 tab 2 (already running since ⏳). Tab 1 is not touched.
 
 ### The production line you are about to grow
 
@@ -837,31 +806,26 @@ clothes** — same hinge, a schema riding it. What the solo prompt could be
 talked out of, the graph physically cannot skip: no `function_response`,
 no video.
 
-**Do not answer it yet.** The wait has a property worth proving first.
-
-👉💻 In **tab 2** (the terminal running adk web), press **Ctrl+C** — the
-whole dev UI dies mid-pause. Now start it again — the same block as
-always, typed fresh:
-
-```console
-cd ~/vibe-studio-lab
-source .venv/bin/activate
-adk web . --port 8000 --allow_origins "*" --reload_agents --session_service_uri "sqlite+aiosqlite:///$PWD/runs/sessions.db"
-```
-
-👉🔬 Reload the Preview, pick **`stage2_direction`**, reopen your session
-from the **NEW SESSION ▾** picker — and there is the form, still standing:
-
-![Killed and restarted — the suspended run is still waiting at the form](codelab-img/st2-survive.png)
-
-👀 A suspended graph is not a paused program — it is a ROW. The form
-survived a dead server exactly the way your thumbnail's wait did, because
-it is the same mechanism.
-
-👉🔬 Now answer it — type `1` into the **pick** field (or the number you
+👉🔬 Answer it — type `1` into the **pick** field (or the number you
 like best) and press **Submit**:
 
 ![The form, answered — 1 in the pick field, then Submit](codelab-img/st2-form-typed.png)
+
+<aside class="positive">
+<b>None of the three? Write your own.</b> The <code>pick</code> field takes
+<code>custom</code> as well as <code>1</code>, <code>2</code> or
+<code>3</code> &mdash; the schema is built at yield time and always carries
+that extra option. Type <code>custom</code> into <b>pick</b>, then put your
+own line in the <b>custom</b> field:
+<pre><code>pick:   custom
+custom: Robot reviews a competitor's vacuum</code></pre>
+<code>persist_direction</code> reads <code>custom</code> only when
+<code>pick</code> is <code>custom</code>, and your line becomes the direction
+&mdash; title, hook and all. The <code>custom</code> field is ignored entirely
+for a numbered pick, so there is no harm leaving it blank. One rule either
+way: <b><code>pick</code> must not be empty.</b> It is the field the run
+resumes on.
+</aside>
 
 The run continues: `persist_direction`
 resolves your pick against the `candidates` in state (nobody passed them
@@ -1395,9 +1359,9 @@ PUBLISHED: {'published': True, 'video_id': 'v_…', 'url': '/watch/v_…'}
 ```
 
 Dev-UI deep dive — the whole lap as raw events (browse only, nothing to
-type): port 8000 Preview → add `&userId=creator` to the URL and reload (adk
-web files YOUR chats under user `user`; the lap's sessions belong to
-`creator`) → **NEW SESSION ▾** → newest `run_…_wf` session. Top to bottom:
+type): port 8000 Preview → change `userId=user` to `userId=creator` in the
+URL and reload (adk web files YOUR chats under user `user`; the lap's
+sessions belong to `creator`) → **NEW SESSION ▾** → newest `run_…_wf` session. Top to bottom:
 the three candidates landing in state, the `adk_request_input` carrying
 the pick schema, your pick coming back as a `function_response`,
 `user:prefs` and `direction` landing in state, the policy route chip, and
@@ -1413,7 +1377,8 @@ turn, results delivered out of order, the medic's retake, the final map.
 <aside class="negative">
 <b>Two gotchas, both deliberate.</b> ① adk web files NEW chats under user
 <code>user</code>, while the lap's sessions live under <code>creator</code>
-— that's why browsing them needs <code>&userId=creator</code> in the URL.
+— that's why browsing them needs <code>userId=creator</code> in the URL,
+in place of the <code>userId=user</code> already there.
 ② The renders you just watched never lived in the graph: a resumed graph
 re-runs its nodes, and an external submit inside a node would submit twice.
 People-pauses are safe to re-ask; world side effects are not.
@@ -1591,11 +1556,20 @@ typing, five clicks:
 
 1. **Web Preview → Change port → 8000** (adk web is still running in
    tab 2 — if you closed the preview tab, this reopens it).
-2. Click the browser's address bar, go to the very END of the URL, add
-   `&userId=creator`, press Enter. (Your own chats live under user `user`;
-   the app's laps live under user `creator` — this switches the view.)
+2. Click the browser's address bar and find `userId=user` in the URL.
+   Change that one word: `user` → `creator`, so it reads `userId=creator`.
+   Press Enter. (Your own chats live under user `user`; the app's laps live
+   under user `creator` — this switches the view.)
 
-![Step 2 — the only edit is at the end of the URL](codelab-img/s3-userid-bar.png)
+<aside class="negative">
+<b>Change it, do not append it.</b> The URL already carries
+<code>userId=user</code>. Adding a second <code>&amp;userId=creator</code> on
+the end leaves both, and adk web joins them into one id &mdash; you get
+<code>No sessions found for user 'user,creator'</code>. There must be exactly
+one <code>userId</code> in the URL.
+</aside>
+
+![Step 2 — one word changes: userId=user becomes userId=creator](codelab-img/s3-userid-bar.png)
 3. Click the **NEW SESSION ▾** picker at the top.
 4. The session list opens — these are the app's laps. Click the newest
    `run_…_wf` session (largest number):
@@ -2079,8 +2053,8 @@ every lap.)
 typing, five clicks:
 
 1. **Web Preview → Change port → 8000**.
-2. If the URL no longer ends with `&userId=creator`, add it back at the very
-   end and press Enter.
+2. If the URL says `userId=user`, change that word to `creator` so it reads
+   `userId=creator`, and press Enter. (Exactly one `userId`, never two.)
 3. Click the **NEW SESSION ▾** picker.
 4. Click the newest `run_…_wf` session — this is the lap you just ran.
 5. Scroll the event list to the very TOP and find the small
