@@ -61,6 +61,19 @@ else:
     except ImportError:
         tick("Memory Bank SDK", False, "uv sync")
 
+# ffmpeg: post-production stitches the final cut with it, and the room's
+# premiere CANNOT be packaged without it. Caught here, at the top of the lab,
+# rather than in the last step of a lap the learner already paid for.
+# STUDIO_NO_FFMPEG=1 opts out the same way STUDIO_NO_BQ / STUDIO_NO_MB do.
+if os.environ.get("STUDIO_NO_FFMPEG"):
+    print("  - ffmpeg: skipped (STUDIO_NO_FFMPEG=1 — the final cut degrades to a "
+          "text manifest and the room premiere is skipped)")
+else:
+    import shutil
+    ff, probe = shutil.which("ffmpeg"), shutil.which("ffprobe")
+    tick("ffmpeg + ffprobe (final cut, and the room's premiere)", bool(ff and probe),
+         "./setup_codelab.sh installs it — or: sudo apt-get install -y ffmpeg")
+
 # the four stage apps the workflow act grows through - adk web lists them
 for app in ("stage0_prompt", "stage1_fanout", "stage2_direction",
             "stage3_router"):

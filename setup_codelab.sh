@@ -72,6 +72,116 @@ uv sync
     "  rm -rf .venv && ./setup_codelab.sh"
 tick "uv env + google-adk[db]==2.5.0 (locked) — activate it with: source .venv/bin/activate"
 
+# ── 1b · ffmpeg ─────────────────────────────────────────────────────────────
+# Post-production stitches the final cut with ffmpeg (world/renderfarm.py), and
+# the room's premiere is PACKAGED with it (agent/premiere.py). The final cut
+# degrades honestly to a text manifest without it; the premiere cannot degrade
+# at all - no ffmpeg, no mp4, no room. So this is worth a real check.
+#
+# Cloud Shell is the target, and Cloud Shell has two properties that decide the
+# approach: sudo works without a password, but ONLY $HOME survives - the VM is
+# recycled and anything apt wrote into /usr is gone next session, which would
+# make this lab break again on day two. A static build unpacked into
+# ~/.local/bin needs no sudo AND persists, so that is the first choice; apt is
+# the fallback for ordinary Linux boxes, and brew for macOS.
+FFMPEG_HOME="$HOME/.local/bin"
+
+ffmpeg_ok() { command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1; }
+
+# A static build into $HOME. No root, and it survives a Cloud Shell recycle.
+install_ffmpeg_static() {
+    local arch tmp base bin
+    case "$(uname -m)" in
+        x86_64|amd64) arch=amd64 ;;
+        aarch64|arm64) arch=arm64 ;;
+        *) return 1 ;;
+    esac
+    [ "$(uname -s)" = "Linux" ] || return 1
+    tmp="$(mktemp -d)" || return 1
+    base="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-${arch}-static.tar.xz"
+    if ! curl -LsSf --max-time 300 "$base" -o "$tmp/ff.tar.xz"; then
+        rm -rf "$tmp"; return 1
+    fi
+    if ! tar -xJf "$tmp/ff.tar.xz" -C "$tmp"; then rm -rf "$tmp"; return 1; fi
+    bin="$(find "$tmp" -maxdepth 2 -type f -name ffmpeg | head -1)"
+    if [ -z "$bin" ]; then rm -rf "$tmp"; return 1; fi
+    mkdir -p "$FFMPEG_HOME" || { rm -rf "$tmp"; return 1; }
+    install -m 0755 "$bin" "$FFMPEG_HOME/ffmpeg" || { rm -rf "$tmp"; return 1; }
+    [ -f "$(dirname "$bin")/ffprobe" ] &&
+        install -m 0755 "$(dirname "$bin")/ffprobe" "$FFMPEG_HOME/ffprobe"
+    rm -rf "$tmp"
+    export PATH="$FFMPEG_HOME:$PATH"
+    ffmpeg_ok
+}
+
+# Ordinary Linux: apt. In Cloud Shell this works but does NOT persist, so the
+# caller says so rather than letting day two be a surprise.
+install_ffmpeg_apt() {
+    command -v apt-get >/dev/null 2>&1 || return 1
+    sudo -n true 2>/dev/null || return 1        # never sit on a password prompt
+    sudo -n DEBIAN_FRONTEND=noninteractive apt-get update -qq >/dev/null 2>&1 || true
+    sudo -n DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg >/dev/null 2>&1 || return 1
+    ffmpeg_ok
+}
+
+install_ffmpeg_brew() {
+    command -v brew >/dev/null 2>&1 || return 1
+    brew install ffmpeg >/dev/null 2>&1 || return 1
+    ffmpeg_ok
+}
+
+# ~/.local/bin is on PATH for THIS script the moment we install into it, but a
+# fresh shell (and the Studio server the learner starts in one) has to find it
+# too. Only touch .bashrc when a login shell genuinely cannot see it, and only
+# once - this script is safe to re-run.
+ensure_home_bin_on_path() {
+    bash -lc 'command -v ffmpeg >/dev/null 2>&1' && return 0
+    local line='export PATH="$HOME/.local/bin:$PATH"   # ffmpeg (vibe-studio-lab)'
+    if [ -f "$HOME/.bashrc" ] && grep -qF 'ffmpeg (vibe-studio-lab)' "$HOME/.bashrc"; then
+        return 0
+    fi
+    printf '\n%s\n' "$line" >> "$HOME/.bashrc"
+    info "added ~/.local/bin to PATH in ~/.bashrc (new shells will find ffmpeg)"
+}
+
+if ffmpeg_ok; then
+    tick "ffmpeg $(ffmpeg -version 2>/dev/null | head -1 | awk '{print $3}') — final cut + the room's premiere"
+else
+    info "ffmpeg not found — installing it (the room's premiere cannot be packaged without it)"
+    if install_ffmpeg_static; then
+        ensure_home_bin_on_path
+        tick "ffmpeg $(ffmpeg -version 2>/dev/null | head -1 | awk '{print $3}') — static build in ~/.local/bin (no sudo, survives a Cloud Shell recycle)"
+    elif install_ffmpeg_apt; then
+        tick "ffmpeg $(ffmpeg -version 2>/dev/null | head -1 | awk '{print $3}') — installed with apt"
+        warn "apt installed ffmpeg into /usr, and Cloud Shell only persists \$HOME."
+        warn "If it is missing next session, re-run ./setup_codelab.sh and it will"
+        warn "put a static copy in ~/.local/bin instead, which does persist."
+    elif install_ffmpeg_brew; then
+        tick "ffmpeg $(ffmpeg -version 2>/dev/null | head -1 | awk '{print $3}') — installed with brew"
+    else
+        die \
+            "Could not install ffmpeg, and this lab needs it." \
+            "Post-production stitches the final cut with it, and the room's" \
+            "premiere cannot be packaged without it at all." \
+            "" \
+            "Install it by hand, then re-run ./setup_codelab.sh:" \
+            "" \
+            "  Cloud Shell / Linux, no root, persists across VM recycles:" \
+            "    mkdir -p ~/.local/bin && cd /tmp \\" \
+            "      && curl -LO https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz \\" \
+            "      && tar xJf ffmpeg-release-amd64-static.tar.xz \\" \
+            "      && install -m755 ffmpeg-*-static/ffmpeg ffmpeg-*-static/ffprobe ~/.local/bin/ \\" \
+            "      && export PATH=\"\$HOME/.local/bin:\$PATH\"" \
+            "" \
+            "  Debian / Ubuntu with root:   sudo apt-get install -y ffmpeg" \
+            "  macOS:                       brew install ffmpeg" \
+            "" \
+            "Want to run the lab WITHOUT it on purpose? Everything except the room" \
+            "still works - the final cut becomes a text manifest and the premiere" \
+            "is skipped. Silence the check with:  export STUDIO_NO_FFMPEG=1"
+    fi
+fi
+
 # ── 2 · the project, and only the APIs this lab calls ───────────────────────
 say "1 · APIs"
 
